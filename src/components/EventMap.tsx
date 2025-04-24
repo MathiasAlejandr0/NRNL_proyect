@@ -5,7 +5,6 @@ import type { Location } from '@/services/event';
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css'; // Import Leaflet CSS
 
-// Default Leaflet icon paths might break in Next.js, so we fix them
 // Import images directly. Ensure these are available.
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
@@ -27,26 +26,19 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
     import('leaflet').then(leaflet => {
       LRef.current = leaflet; // Store Leaflet instance
 
-      // Fix Leaflet's default icon paths *after* Leaflet is loaded
-      // Ensure this runs only once or when necessary
-      // Using a simple check on the prototype to avoid multiple merges
-      if (LRef.current && !(LRef.current.Icon.Default.prototype as any)._iconUrlFixed) {
-          delete (LRef.current.Icon.Default.prototype as any)._getIconUrl; // Delete the old method if it exists
-
-          LRef.current.Icon.Default.mergeOptions({
-            iconRetinaUrl: iconRetinaUrl.src,
-            iconUrl: iconUrl.src,
-            shadowUrl: shadowUrl.src,
-          });
-          (LRef.current.Icon.Default.prototype as any)._iconUrlFixed = true; // Mark as fixed
-      }
-
-
       if (mapContainerRef.current && LRef.current) {
         const L = LRef.current; // Use the stored Leaflet instance
 
-         // Explicitly create the icon *after* defaults are potentially merged
-        const defaultIcon = new L.Icon.Default();
+        // Create a reusable icon instance with explicit paths and options
+        const defaultIcon = L.icon({
+            iconUrl: iconUrl.src,
+            iconRetinaUrl: iconRetinaUrl.src,
+            shadowUrl: shadowUrl.src,
+            iconSize: [25, 41], // Default size
+            iconAnchor: [12, 41], // Default anchor
+            popupAnchor: [1, -34], // Default popup anchor
+            shadowSize: [41, 41] // Default shadow size
+        });
 
         // Initialize map only once or if it doesn't exist
         if (!mapRef.current) {
@@ -56,7 +48,7 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
               attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(mapRef.current);
 
-            // Create marker *after* map and icon setup
+            // Create marker using the explicitly defined icon
             const marker = L.marker([location.lat, location.lng], { icon: defaultIcon }).addTo(mapRef.current);
             marker.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup(); // Add popup to marker
 
@@ -72,9 +64,6 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
                     // Ensure marker uses the correctly configured icon
                     layer.setIcon(defaultIcon);
                     layer.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup();
-                 } else if (layer instanceof L.TileLayer){
-                     // Optional: Force redraw tile layer if needed, though usually not necessary for view changes
-                    // layer.redraw();
                  }
              });
              // If no marker exists for some reason (e.g., removed), add one
@@ -87,7 +76,6 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
 
     }).catch(error => {
         console.error("Failed to load Leaflet", error);
-        // Handle error appropriately, e.g., show a message to the user
         if (mapContainerRef.current) {
             mapContainerRef.current.innerHTML = '<p class="text-center text-destructive">Error loading map.</p>';
         }
