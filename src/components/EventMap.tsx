@@ -30,8 +30,8 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
       if (mapContainerRef.current && LRef.current) {
         const L = LRef.current; // Use the stored Leaflet instance
 
+        // --- Define the default icon *after* Leaflet is loaded ---
         // Create a reusable icon instance with explicit paths and options
-        // This is the crucial fix for the iconUrl error
         const defaultIcon = L.icon({
             iconUrl: iconUrl.src,
             iconRetinaUrl: iconRetinaUrl.src,
@@ -63,7 +63,7 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
                  if (layer instanceof L.Marker) {
                     markerExists = true;
                     layer.setLatLng([location.lat, location.lng]);
-                    // Ensure marker uses the correctly configured icon
+                    // --- Ensure marker uses the correctly configured icon on update ---
                     layer.setIcon(defaultIcon);
                     layer.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup();
                  }
