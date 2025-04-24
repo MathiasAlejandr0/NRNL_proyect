@@ -10,6 +10,7 @@ import 'leaflet/dist/leaflet.css'; // Import Leaflet CSS
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
+import type L from 'leaflet'; // Import Leaflet type for ref
 
 interface EventMapProps {
   location: Location;
@@ -20,7 +21,7 @@ interface EventMapProps {
 export function EventMap({ location, venueName, eventName }: EventMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null); // To store map instance
-  const LRef = useRef<typeof L | null>(null); // To store Leaflet instance
+  const LRef = useRef<typeof L | null>(null); // To store Leaflet static instance
 
   useEffect(() => {
     // Dynamically import Leaflet only on the client-side
@@ -30,8 +31,16 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
       if (mapContainerRef.current && LRef.current) {
         const L = LRef.current; // Use the stored Leaflet instance
 
-        // --- Define the default icon *after* Leaflet is loaded ---
-        // Create a reusable icon instance with explicit paths and options
+        // --- Explicitly configure the default icon paths AFTER loading Leaflet ---
+        // This helps prevent issues with bundlers/frameworks like Next.js
+        delete (L.Icon.Default.prototype as any)._getIconUrl; // Remove previous potentially broken getter
+
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: iconRetinaUrl.src,
+          iconUrl: iconUrl.src,
+          shadowUrl: shadowUrl.src,
+        });
+         // --- Define the custom icon using explicit paths and options ---
         const defaultIcon = L.icon({
             iconUrl: iconUrl.src,
             iconRetinaUrl: iconRetinaUrl.src,
@@ -42,6 +51,7 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
             shadowSize: [41, 41] // Default shadow size
         });
 
+
         // Initialize map only once or if it doesn't exist
         if (!mapRef.current) {
             mapRef.current = L.map(mapContainerRef.current).setView([location.lat, location.lng], 15); // Set initial view and zoom
@@ -50,7 +60,7 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
               attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(mapRef.current);
 
-            // Create marker using the explicitly defined icon
+            // Create marker using the explicitly defined custom icon instance
             const marker = L.marker([location.lat, location.lng], { icon: defaultIcon }).addTo(mapRef.current);
             marker.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup(); // Add popup to marker
 
@@ -60,6 +70,7 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
 
              let markerExists = false;
              mapRef.current.eachLayer((layer) => {
+                 // Check if layer is a marker before casting
                  if (layer instanceof L.Marker) {
                     markerExists = true;
                     layer.setLatLng([location.lat, location.lng]);
@@ -70,6 +81,7 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
              });
              // If no marker exists for some reason (e.g., removed), add one
              if (!markerExists) {
+                 // Use the explicitly defined custom icon instance
                  const marker = L.marker([location.lat, location.lng], { icon: defaultIcon }).addTo(mapRef.current);
                  marker.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup();
              }
