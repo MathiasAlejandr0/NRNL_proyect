@@ -3,72 +3,89 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Use library engine type for better compatibility in various environments
+  engineType = "library"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./dev.db" // Uses a local SQLite file named dev.db
 }
 
-// Models based on application interfaces and requirements
 
+// --- User Model ---
 model UserProfile {
-  id          String    @id @unique // Corresponds to Firebase Auth UID
-  email       String?   @unique
-  displayName String?
-  photoURL    String?
-  role        String    @default("attendee") // 'attendee' or 'producer'
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  tickets     UserTicket[] // Relation to UserTicket
-  giveawayEntries GiveawayEntry[] // Relation to GiveawayEntry
-  giveawayWins GiveawayWin[] // Relation to GiveawayWin
+  id            String    @id @default(cuid()) // Firebase UID will be used here, but default needed for Prisma
+  email         String?   @unique
+  displayName   String?
+  photoURL      String?
+  role          String    @default("attendee") // 'attendee' or 'producer'
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  giveawayEntries GiveawayEntry[]
+  giveawayWins    GiveawayWin[]
+  tickets         UserTicket[]
 }
 
+
+// --- Event Model ---
 model MusicEvent {
-  id              String    @id @default(cuid())
-  name            String
-  artist          String
-  artistBio       String?
-  venue           String
-  venueDetails    String?
-  lat             Float     // Latitude
-  lng             Float     // Longitude
-  dateTime        DateTime  // Event date and time
-  ticketPrice     Float?    // Use Float for SQLite compatibility with decimal values
-  ticketUrl       String?
-  description     String?
-  imageUrl        String
-  giveawayActive  Boolean   @default(false)
-  giveawayEndDate DateTime? // When the giveaway entry period ends
-  giveawayTickets Int?      // Number of tickets in the giveaway
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  name          String
+  artist        String
+  artistBio     String?
+  venue         String
+  venueDetails  String?
+  lat           Float     // Latitude
+  lng           Float     // Longitude
+  dateTime      DateTime
+  ticketPrice   Float?    // Nullable for free events
+  ticketUrl     String?   // URL to buy tickets
+  description   String?
+  imageUrl      String    // URL for event image
 
-  giveawayEntries GiveawayEntry[] // Relation to GiveawayEntry
-  giveawayWins    GiveawayWin[] // Relation to GiveawayWin
-  tickets         UserTicket[] // Relation to UserTicket
+  // Giveaway fields
+  giveawayActive  Boolean   @default(false)
+  giveawayEndDate DateTime? // Optional end date for the giveaway
+  giveawayTickets Int?      // Number of tickets to giveaway
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  giveawayEntries GiveawayEntry[]
+  giveawayWins    GiveawayWin[]
+  tickets         UserTicket[]
 }
 
+
+// --- Giveaway Entry Model ---
 model GiveawayEntry {
   id        String   @id @default(cuid())
-  userId    String   // Foreign key to UserProfile
-  eventId   String   // Foreign key to MusicEvent
+  userId    String
+  eventId   String
   enteredAt DateTime @default(now())
 
+  // Relations
   user  UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
   event MusicEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, eventId]) // Ensure a user can enter only once per event
+  @@unique([userId, eventId]) // Ensure a user can only enter once per event
 }
 
+
+// --- Giveaway Win Model ---
+// Tracks which users won which giveaways
 model GiveawayWin {
   id        String   @id @default(cuid())
-  userId    String   // Foreign key to UserProfile
-  eventId   String   // Foreign key to MusicEvent
-  eventName String   // Denormalized event name for easy lookup
+  userId    String
+  eventId   String
+  eventName String   // Store event name for quick reference
   wonAt     DateTime @default(now())
 
+  // Relations
   user  UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
   event MusicEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -76,20 +93,23 @@ model GiveawayWin {
 }
 
 
+// --- User Ticket Model ---
+// Stores tickets owned by users (both purchased and won)
 model UserTicket {
   id            String   @id @default(cuid())
-  userId        String   // Foreign key to UserProfile
-  eventId       String   // Foreign key to MusicEvent
-  eventName     String   // Denormalized event name
-  venue         String   // Denormalized venue name
-  eventDateTime DateTime // Denormalized event date/time
+  userId        String
+  eventId       String
+  eventName     String
+  venue         String
+  eventDateTime DateTime // Store the specific event date/time for the ticket
   type          String   // 'purchased' or 'giveaway'
-  qrCodeData    String   @unique // Unique data for QR code generation/verification
+  qrCodeData    String   @unique // Unique data for the QR code
   acquiredAt    DateTime @default(now())
 
+  // Relations
   user  UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
   event MusicEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  // Optional: Add index for faster querying by user
   @@index([userId])
+  @@index([eventId])
 }
