@@ -13,16 +13,28 @@ export default async function HomePage() {
 
   try {
     // Fetch events using Prisma service (returns Prisma MusicEvent type)
+    console.log('Fetching events from Prisma...');
     allEvents = await getMusicEvents();
+    console.log(`Fetched ${allEvents.length} total events:`, allEvents);
 
     // Filter upcoming events and sort (Prisma returns Date objects)
+    const now = new Date();
     const upcomingEvents = allEvents
-      .filter(event => event.dateTime && event.dateTime > new Date())
+      .filter(event => {
+          const isUpcoming = event.dateTime && event.dateTime > now;
+          // console.log(`Event: ${event.name}, DateTime: ${event.dateTime}, Now: ${now}, IsUpcoming: ${isUpcoming}`); // Detailed log per event
+          return isUpcoming;
+      })
       // Sorting is already done by getMusicEvents, but double-check if needed
       .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
 
+    console.log(`Found ${upcomingEvents.length} upcoming events:`, upcomingEvents);
+
+
     // Select the first upcoming event's artist as featured
     featuredEvent = upcomingEvents.length > 0 ? upcomingEvents[0] : null;
+    console.log('Featured Event:', featuredEvent);
+
 
   } catch (error) {
      console.error("Failed to fetch events for Home Page:", error);

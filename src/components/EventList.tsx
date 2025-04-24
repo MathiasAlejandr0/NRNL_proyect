@@ -18,18 +18,26 @@ export function EventList({ initialEvents }: EventListProps) {
   const [loading, setLoading] = useState(!initialEvents);
   const [error, setError] = useState<string | null>(null);
 
+   // Log initial events received
+   useEffect(() => {
+     console.log('EventList received initialEvents:', initialEvents);
+   }, [initialEvents]);
+
+
   useEffect(() => {
     if (!initialEvents) {
       const fetchEvents = async () => {
         try {
           setLoading(true);
           setError(null);
+          console.log('EventList fetching events client-side...');
           // Fetch using Prisma service
           const fetchedEvents = await getMusicEvents();
+           console.log('EventList fetched events:', fetchedEvents);
           // Sorting is handled by getMusicEvents, no need to sort here unless logic changes
           setEvents(fetchedEvents);
         } catch (err: any) {
-          console.error("Failed to fetch events:", err);
+          console.error("Failed to fetch events in EventList:", err);
           setError(err.message || "Could not load events. Please try again later.");
         } finally {
           setLoading(false);
@@ -41,9 +49,10 @@ export function EventList({ initialEvents }: EventListProps) {
        setEvents(initialEvents);
        setLoading(false);
     }
-  }, [initialEvents]);
+  }, [initialEvents]); // Rerun if initialEvents change
 
   if (loading) {
+      console.log('EventList showing loading skeleton.');
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(6)].map((_, i) => (
@@ -63,6 +72,7 @@ export function EventList({ initialEvents }: EventListProps) {
   }
 
   if (error) {
+     console.log('EventList showing error:', error);
      return (
         <Alert variant="destructive" className="mt-6">
           <AlertCircle className="h-4 w-4" />
@@ -74,10 +84,17 @@ export function EventList({ initialEvents }: EventListProps) {
 
   // Filter out past events using Date objects
   const now = new Date();
-  const upcomingEvents = events.filter(event => event.dateTime && event.dateTime >= now);
+  const upcomingEvents = events.filter(event => {
+      const isUpcoming = event.dateTime && event.dateTime >= now;
+      // console.log(`EventList Filter: ${event.name}, DateTime: ${event.dateTime}, Now: ${now}, IsUpcoming: ${isUpcoming}`); // Detailed log
+      return isUpcoming;
+  });
+
+  console.log('EventList filtered upcomingEvents:', upcomingEvents);
 
 
   if (upcomingEvents.length === 0) {
+     console.log('EventList showing "No Upcoming Events". Total events:', events.length);
      return (
         <Alert className="mt-6 border-dashed border-accent text-center">
             <AlertCircle className="h-4 w-4 inline-block mr-2 text-accent" />
@@ -89,6 +106,7 @@ export function EventList({ initialEvents }: EventListProps) {
      )
   }
 
+  console.log(`EventList rendering ${upcomingEvents.length} EventCard components.`);
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {upcomingEvents.map((event) => (
