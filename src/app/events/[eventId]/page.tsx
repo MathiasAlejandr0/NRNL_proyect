@@ -89,9 +89,9 @@ export default async function EventDetailPage({ params }: Props) {
                <p className="text-muted-foreground leading-relaxed">{event.venueDetails}</p>
                {/* Interactive Map Section */}
                 <div className="mt-4">
-                    <h3 className="text-lg font-semibold mb-2 text-primary flex items-center gap-2"><MapPin className="w-5 h-5" /> Location</h3>
-                    {/* Pass lat/lng from mock event */}
-                    <EventMap location={{ lat: event.lat, lng: event.lng }} venueName={event.venue} eventName={event.name} />
+                    <h3 className="text-lg font-semibold mb-2 text-primary flex items-center gap-2"><MapPin className="w-5 h-5" /> Location Area</h3>
+                    {/* Pass lat/lng from mock event - Removed props as map is static */}
+                    <EventMap />
                 </div>
             </div>
 
@@ -112,15 +112,16 @@ export default async function EventDetailPage({ params }: Props) {
              <Card className="bg-secondary/50 border-primary/30 p-4">
                <h3 className="text-lg font-semibold mb-3 text-primary flex items-center gap-2"><MapPin className="w-5 h-5" /> Where</h3>
                <p>{event.venue}</p>
-               <p className="text-sm text-muted-foreground">{/* Address could go here if separated from venueDetails */}</p>
-                {/* Link to open map in external app (optional) */}
+                {/* Address could go here if separated from venueDetails */}
+               <p className="text-sm text-muted-foreground">{/* Example: 123 Main St, Puerto Montt */}</p>
+                {/* Link to open map in external app (using event lat/lng) */}
                  <a
                      href={`https://www.google.com/maps/search/?api=1&query=${event.lat},${event.lng}`}
                      target="_blank"
                      rel="noopener noreferrer"
                      className="text-sm text-primary hover:underline mt-2 inline-block"
                  >
-                     Open in Maps
+                     Open Exact Location in Maps
                  </a>
              </Card>
 
