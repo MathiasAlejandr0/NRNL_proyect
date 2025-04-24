@@ -29,14 +29,16 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
 
       // Fix Leaflet's default icon paths *after* Leaflet is loaded
       // Ensure this runs only once or when necessary
+      // Using a simple check on the prototype to avoid multiple merges
       if (LRef.current && !(LRef.current.Icon.Default.prototype as any)._iconUrlFixed) {
-        delete (LRef.current.Icon.Default.prototype as any)._getIconUrl;
-        LRef.current.Icon.Default.mergeOptions({
-          iconRetinaUrl: iconRetinaUrl.src,
-          iconUrl: iconUrl.src,
-          shadowUrl: shadowUrl.src,
-        });
-        (LRef.current.Icon.Default.prototype as any)._iconUrlFixed = true; // Mark as fixed
+          delete (LRef.current.Icon.Default.prototype as any)._getIconUrl; // Delete the old method if it exists
+
+          LRef.current.Icon.Default.mergeOptions({
+            iconRetinaUrl: iconRetinaUrl.src,
+            iconUrl: iconUrl.src,
+            shadowUrl: shadowUrl.src,
+          });
+          (LRef.current.Icon.Default.prototype as any)._iconUrlFixed = true; // Mark as fixed
       }
 
 
@@ -54,7 +56,7 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
               attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(mapRef.current);
 
-
+            // Create marker *after* map and icon setup
             const marker = L.marker([location.lat, location.lng], { icon: defaultIcon }).addTo(mapRef.current);
             marker.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup(); // Add popup to marker
 
@@ -62,10 +64,12 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
              // If map exists, just update view and marker position/popup
              mapRef.current.setView([location.lat, location.lng], 15);
 
+             let markerExists = false;
              mapRef.current.eachLayer((layer) => {
                  if (layer instanceof L.Marker) {
+                    markerExists = true;
                     layer.setLatLng([location.lat, location.lng]);
-                    // Ensure marker uses the correctly configured icon if it needs recreation
+                    // Ensure marker uses the correctly configured icon
                     layer.setIcon(defaultIcon);
                     layer.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup();
                  } else if (layer instanceof L.TileLayer){
@@ -73,11 +77,7 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
                     // layer.redraw();
                  }
              });
-             // If no marker exists for some reason, add one
-             let markerExists = false;
-             mapRef.current.eachLayer((layer) => {
-                 if (layer instanceof L.Marker) markerExists = true;
-             });
+             // If no marker exists for some reason (e.g., removed), add one
              if (!markerExists) {
                  const marker = L.marker([location.lat, location.lng], { icon: defaultIcon }).addTo(mapRef.current);
                  marker.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup();
@@ -122,3 +122,4 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
     </div>
   );
 }
+
