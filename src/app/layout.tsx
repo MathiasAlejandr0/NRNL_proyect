@@ -1,6 +1,5 @@
 
 import type { Metadata } from 'next';
-// Correct the import path for Geist fonts
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
@@ -21,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn("dark", GeistSans.variable, GeistMono.variable)} suppressHydrationWarning>
-      <head />{/* The <head /> tag is automatically managed by Next.js */}
+      <head />
       <body className={cn(
         "antialiased",
         "bg-gradient-to-br from-background to-background/90 min-h-screen flex flex-col" // Use flex-col
