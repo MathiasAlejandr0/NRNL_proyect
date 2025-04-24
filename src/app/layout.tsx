@@ -18,9 +18,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("dark", GeistSans.variable, GeistMono.variable)}> {/* Force dark mode and apply fonts */}
+    <html lang="en" className={cn("dark", GeistSans.variable, GeistMono.variable)} suppressHydrationWarning>
+      {/* The <head /> tag is automatically managed by Next.js */}
       <body className={cn(
-        // Apply the font variables directly from the imported objects - moved font variables to html tag
         "antialiased",
         "bg-gradient-to-br from-background to-background/90 min-h-screen"
         )}>
