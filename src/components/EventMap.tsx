@@ -28,35 +28,37 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
     import('leaflet').then(leaflet => {
       LRef.current = leaflet; // Store Leaflet instance
       console.log('Leaflet loaded:', LRef.current);
+       console.log('Icon URLs:', {
+           iconUrl: iconUrl?.src,
+           iconRetinaUrl: iconRetinaUrl?.src,
+           shadowUrl: shadowUrl?.src,
+       });
+
 
       if (mapContainerRef.current && LRef.current) {
         const L = LRef.current; // Use the stored Leaflet instance
 
-        // --- Explicitly configure the default icon paths BEFORE any map/marker creation ---
-        // This helps prevent issues with bundlers/frameworks like Next.js
-        // Delete the potentially problematic default getter first
-        if ((L.Icon.Default.prototype as any)._getIconUrl) {
-           delete (L.Icon.Default.prototype as any)._getIconUrl;
-           console.log('Deleted default _getIconUrl');
-        }
-
-        L.Icon.Default.mergeOptions({
-          iconRetinaUrl: iconRetinaUrl.src,
-          iconUrl: iconUrl.src,
-          shadowUrl: shadowUrl.src,
-           // Set default icon properties (important for consistency)
-           iconSize: [25, 41],
-           iconAnchor: [12, 41],
-           popupAnchor: [1, -34],
-           tooltipAnchor: [16, -28],
-           shadowSize: [41, 41]
+        // --- Create the icon instance directly with required options ---
+        const defaultIcon = L.icon({
+            iconRetinaUrl: iconRetinaUrl.src,
+            iconUrl: iconUrl.src,
+            shadowUrl: shadowUrl.src,
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            tooltipAnchor: [16, -28],
+            shadowSize: [41, 41]
         });
-        console.log('Leaflet default icon options merged:', L.Icon.Default.prototype.options);
+        console.log('Created defaultIcon instance with options:', defaultIcon.options);
 
-        // --- Define the default icon instance to be used ---
-        // This ensures we use the merged options.
-        const defaultIcon = L.icon({ ...L.Icon.Default.prototype.options });
-        console.log('Created defaultIcon instance:', defaultIcon.options);
+        // Check if icon URLs are valid strings
+        if (!defaultIcon.options.iconUrl || !defaultIcon.options.iconRetinaUrl || !defaultIcon.options.shadowUrl) {
+            console.error("Error: One or more icon URLs are missing or invalid after creation.", defaultIcon.options);
+            if (mapContainerRef.current) {
+                 mapContainerRef.current.innerHTML = '<p class="text-center text-destructive p-4">Error loading map: Invalid marker icon configuration.</p>';
+            }
+            return; // Prevent further execution if icon URLs are bad
+        }
 
 
         // Initialize map only once or if it doesn't exist
@@ -79,7 +81,7 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
              });
 
             // Create marker using the explicitly defined default icon instance
-            console.log('Adding marker with defaultIcon...');
+            console.log('Adding marker with explicitly created defaultIcon...');
             const marker = L.marker([location.lat, location.lng], { icon: defaultIcon }).addTo(mapRef.current);
             marker.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup(); // Add popup to marker
             console.log('Map initialized and marker added.');
@@ -107,8 +109,13 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
                  marker.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup();
              }
              // Invalidate map size after potential container resizes or updates
-             mapRef.current.invalidateSize();
-             console.log('Map size invalidated.');
+             // Use requestAnimationFrame to ensure DOM is ready for resize calculation
+             requestAnimationFrame(() => {
+                 if (mapRef.current) {
+                     mapRef.current.invalidateSize();
+                     console.log('Map size invalidated.');
+                 }
+             });
         } else {
             console.warn('Map container not ready or has no height.');
         }
@@ -163,3 +170,4 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
     </div>
   );
 }
+
