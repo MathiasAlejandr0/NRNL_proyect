@@ -1,22 +1,11 @@
 
-import { db } from '@/lib/firebase/config';
-import {
-    collection,
-    doc,
-    getDocs,
-    getDoc,
-    addDoc,
-    setDoc,
-    query,
-    where,
-    Timestamp,
-    serverTimestamp,
-    deleteDoc, // Import deleteDoc
-    writeBatch, // Import writeBatch for atomic deletes
-} from 'firebase/firestore';
+import { prisma } from '@/lib/prisma'; // Use Prisma client
+import type { MusicEvent as PrismaMusicEvent, UserTicket as PrismaUserTicket, GiveawayEntry as PrismaGiveawayEntry, GiveawayWin as PrismaGiveawayWin } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 /**
  * Represents a geographical location with latitude and longitude coordinates.
+ * Kept for internal use within components, Prisma returns lat/lng directly.
  */
 export interface Location {
   lat: number;
@@ -24,169 +13,102 @@ export interface Location {
 }
 
 /**
- * Represents details of a music event stored in Firestore.
- * Uses Firestore Timestamps for date fields.
+ * Represents details of a music event. Directly uses Prisma model structure.
+ * No separate application interface needed as Prisma model is sufficient.
  */
-export interface MusicEvent {
-  id: string; // Document ID from Firestore
-  name: string;
-  artist: string;
-  artistBio: string;
-  venue: string;
-  venueDetails: string;
-  location: Location;
-  dateTime: Timestamp; // Use Firestore Timestamp
-  ticketPrice: number | null;
-  ticketUrl: string;
-  description: string;
-  imageUrl: string;
-  giveawayActive: boolean;
-  giveawayEndDate?: Timestamp; // Optional Firestore Timestamp
-  giveawayTickets?: number;
-  // creatorId?: string; // Optional: Link event to a creator (producer)
-  createdAt: Timestamp; // Track creation time
+export type MusicEvent = PrismaMusicEvent;
+
+/**
+ * Represents a ticket held by a user. Adapts Prisma model slightly for easier use.
+ */
+export interface UserTicket extends Omit<PrismaUserTicket, 'id' | 'eventDateTime'> {
+  ticketId: string; // Use 'id' from Prisma model
+  dateTime: Date; // Use 'eventDateTime' from Prisma model
+  acquiredAt: Date;
 }
 
 /**
- * Represents a ticket held by a user (subcollection).
+ * Represents a giveaway entry. Adapts Prisma model slightly.
  */
-export interface UserTicket {
-  ticketId: string; // Document ID
-  eventId: string;
-  eventName: string;
-  venue: string;
-  dateTime: Timestamp; // Store event time for easy display
-  type: 'purchased' | 'giveaway';
-  qrCodeData: string; // Placeholder
-  acquiredAt: Timestamp; // When the ticket was acquired
+export interface GiveawayEntry extends Omit<PrismaGiveawayEntry, 'id'> {
+    entryId: string; // Use 'id' from Prisma model
+    enteredAt: Date;
 }
 
-/**
- * Represents a giveaway entry (subcollection).
- */
-export interface GiveawayEntry {
-    entryId: string; // Document ID
-    eventId: string;
-    userId: string;
-    enteredAt: Timestamp;
-}
-
-// --- Firestore Collection References ---
-const eventsCollection = collection(db, 'events');
-const getUserTicketsCollection = (userId: string) => collection(db, 'users', userId, 'tickets');
-const getEventGiveawayEntriesCollection = (eventId: string) => collection(db, 'events', eventId, 'giveawayEntries');
-const getUserGiveawayWinsCollection = (userId: string) => collection(db, 'users', userId, 'giveawayWins'); // To store won event IDs
 
 // --- Helper Functions ---
 
-/** Converts a Firestore document snapshot to a MusicEvent object. */
-const snapshotToMusicEvent = (snapshot: any): MusicEvent => {
-    const data = snapshot.data();
-    return {
-        id: snapshot.id,
-        ...data,
-        // Ensure Timestamps are correctly handled (they usually are by default)
-        dateTime: data.dateTime,
-        giveawayEndDate: data.giveawayEndDate,
-        createdAt: data.createdAt,
-    } as MusicEvent;
-};
+// No longer needed: prismaToMusicEvent, as we use the Prisma type directly.
 
-/** Converts a Firestore document snapshot to a UserTicket object. */
-const snapshotToUserTicket = (snapshot: any): UserTicket => {
-    const data = snapshot.data();
+/** Converts a Prisma UserTicket object to the application's UserTicket interface. */
+const prismaToUserTicket = (prismaTicket: PrismaUserTicket): UserTicket => {
+    // Destructure id and eventDateTime, include the rest
+    const { id, eventDateTime, ...rest } = prismaTicket;
     return {
-        ticketId: snapshot.id,
-        ...data,
-        dateTime: data.dateTime,
-        acquiredAt: data.acquiredAt,
-    } as UserTicket;
+        ...rest, // Spread remaining fields
+        ticketId: id, // Map id to ticketId
+        dateTime: eventDateTime, // Map eventDateTime to dateTime
+        // acquiredAt is already a Date
+    };
 };
 
 
 // --- Service Functions ---
 
-/**
- * Seeds the database with initial mock event data if it's empty.
- */
-export async function seedInitialEvents() {
-    const eventsSnapshot = await getDocs(eventsCollection);
-    if (eventsSnapshot.empty) {
-        console.log('No events found in Firestore, seeding initial data...');
-        const mockEventsData = getMockEvents(); // Get raw mock data
-        const batch = writeBatch(db);
-
-        mockEventsData.forEach(eventData => {
-            const newEventRef = doc(eventsCollection); // Generate new ID automatically
-            const eventWithTimestamps = {
-                ...eventData,
-                dateTime: Timestamp.fromDate(new Date(eventData.dateTime)),
-                giveawayEndDate: eventData.giveawayEndDate ? Timestamp.fromDate(new Date(eventData.giveawayEndDate)) : undefined,
-                createdAt: serverTimestamp(), // Use server timestamp for creation
-            };
-            delete (eventWithTimestamps as any).id; // Remove the mock ID
-            batch.set(newEventRef, eventWithTimestamps);
-        });
-
-        try {
-            await batch.commit();
-            console.log('Successfully seeded initial events.');
-        } catch (error) {
-            console.error('Error seeding initial events:', error);
-        }
-    } else {
-        console.log('Events collection already contains data, skipping seeding.');
-    }
-}
-
+// Seeding check removed, should be done via `prisma db seed`
 
 /**
- * Asynchronously retrieves music events from Firestore.
+ * Asynchronously retrieves music events from Prisma.
  * TODO: Implement location-based filtering and pagination.
  *
- * @returns A promise that resolves to an array of MusicEvent objects.
+ * @param location Optional location filter (not implemented yet).
+ * @returns A promise that resolves to an array of MusicEvent objects (Prisma type).
  */
 export async function getMusicEvents(location?: Location): Promise<MusicEvent[]> {
     try {
-        // TODO: Add location filtering (Geoqueries) and pagination later
-        await seedInitialEventsIfNeeded(); // Ensure data exists
-        const querySnapshot = await getDocs(eventsCollection);
-        const events = querySnapshot.docs.map(snapshotToMusicEvent);
-         // Sort events by date (soonest first) client-side for now
-         events.sort((a, b) => a.dateTime.toMillis() - b.dateTime.toMillis());
-        return events;
+        // Removed seed check
+        const prismaEvents = await prisma.musicEvent.findMany({
+            orderBy: {
+                dateTime: 'asc', // Order by date ascending
+            },
+            // TODO: Add where clause for location filtering if needed
+        });
+        // Return Prisma events directly
+        return prismaEvents;
     } catch (error) {
-        console.error("Error fetching music events: ", error);
+        console.error("Error fetching music events from Prisma: ", error);
         throw new Error("Could not fetch music events.");
     }
 }
 
 /**
- * Asynchronously retrieves a single music event by its ID from Firestore.
+ * Asynchronously retrieves a single music event by its ID from Prisma.
  *
  * @param eventId The ID of the event to retrieve.
- * @returns A promise that resolves to the MusicEvent object or undefined if not found.
+ * @returns A promise that resolves to the MusicEvent object (Prisma type) or null if not found.
  */
-export async function getMusicEventById(eventId: string): Promise<MusicEvent | undefined> {
+export async function getMusicEventById(eventId: string): Promise<MusicEvent | null> {
    try {
-        await seedInitialEventsIfNeeded(); // Ensure data exists
-        const eventRef = doc(db, 'events', eventId);
-        const eventSnap = await getDoc(eventRef);
+       // Removed seed check
+        const prismaEvent = await prisma.musicEvent.findUnique({
+            where: { id: eventId },
+        });
 
-        if (eventSnap.exists()) {
-            return snapshotToMusicEvent(eventSnap);
+        if (prismaEvent) {
+            // Return Prisma event directly
+            return prismaEvent;
         } else {
             console.log(`Event with ID ${eventId} not found.`);
-            return undefined;
+            return null;
         }
     } catch (error) {
-        console.error("Error fetching event by ID: ", error);
+        console.error("Error fetching event by ID from Prisma: ", error);
         throw new Error("Could not fetch event details.");
     }
 }
 
 /**
- * Asynchronously enters a user into a giveaway in Firestore.
+ * Asynchronously enters a user into a giveaway using Prisma.
  * Checks if giveaway is active, not ended, and if user hasn't entered yet.
  *
  * @param userId The ID of the user entering the giveaway.
@@ -195,55 +117,56 @@ export async function getMusicEventById(eventId: string): Promise<MusicEvent | u
  */
 export async function enterGiveaway(userId: string, eventId: string): Promise<boolean> {
     try {
-        const event = await getMusicEventById(eventId);
+        const event = await prisma.musicEvent.findUnique({
+            where: { id: eventId },
+        });
+
         if (!event || !event.giveawayActive) {
             console.error(`Giveaway not active or event not found for ${eventId}`);
             return false;
         }
 
-        const now = Timestamp.now();
+        const now = new Date();
         if (event.giveawayEndDate && now > event.giveawayEndDate) {
             console.error(`Giveaway ended for ${eventId}`);
             return false;
         }
 
-        // Check if user already entered
-        const entriesCollection = getEventGiveawayEntriesCollection(eventId);
-        const q = query(entriesCollection, where('userId', '==', userId));
-        const existingEntrySnapshot = await getDocs(q);
+        // Check if user already entered using Prisma's unique constraint handling
+        try {
+            await prisma.giveawayEntry.create({
+                data: {
+                    userId: userId,
+                    eventId: eventId,
+                    // enteredAt is handled by @default(now())
+                },
+            });
+            console.log(`User ${userId} successfully entered giveaway for ${eventId}`);
 
-        if (!existingEntrySnapshot.empty) {
-             console.warn(`User ${userId} already entered giveaway for ${eventId}`);
-             return false; // Already entered
+            // Mock win determination (for testing - REMOVE IN PRODUCTION)
+            if (Math.random() < 0.3) {
+                await markUserAsWinner(userId, eventId);
+                console.log(`Mock Winner: User ${userId} marked as winner for ${eventId}.`);
+            }
+
+            return true;
+        } catch (error) {
+            // Handle unique constraint violation (user already entered)
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+                console.warn(`User ${userId} already entered giveaway for ${eventId}`);
+                return false; // Already entered
+            }
+            // Rethrow other errors
+            throw error;
         }
-
-        // Add entry
-        const newEntryRef = doc(entriesCollection); // Auto-generate ID
-        await setDoc(newEntryRef, {
-            eventId: eventId,
-            userId: userId,
-            enteredAt: serverTimestamp(),
-        });
-
-        console.log(`User ${userId} successfully entered giveaway for ${eventId}`);
-
-        // Mock win determination (for testing - REMOVE IN PRODUCTION)
-        // This should be a separate backend process
-        if (Math.random() < 0.3) { // 30% chance to "win" instantly for testing
-             await markUserAsWinner(userId, eventId);
-             console.log(`Mock Winner: User ${userId} marked as winner for ${eventId}.`);
-        }
-
-        return true;
     } catch (error) {
         console.error("Error entering giveaway: ", error);
-        // Consider throwing error for more specific handling in component
         return false; // Indicate failure
     }
 }
 
 /**
- * Checks if a user has entered a specific giveaway in Firestore.
+ * Checks if a user has entered a specific giveaway using Prisma.
  *
  * @param userId The ID of the user.
  * @param eventId The ID of the event giveaway.
@@ -251,172 +174,199 @@ export async function enterGiveaway(userId: string, eventId: string): Promise<bo
  */
 export async function hasUserEnteredGiveaway(userId: string, eventId: string): Promise<boolean> {
      try {
-        const entriesCollection = getEventGiveawayEntriesCollection(eventId);
-        const q = query(entriesCollection, where('userId', '==', userId));
-        const querySnapshot = await getDocs(q);
-        return !querySnapshot.empty;
+        const entry = await prisma.giveawayEntry.findUnique({
+            where: {
+                userId_eventId: { userId, eventId },
+            },
+        });
+        return !!entry; // Returns true if entry exists, false otherwise
     } catch (error) {
         console.error("Error checking giveaway entry status: ", error);
-        // Default to false on error to prevent accidental multiple entries UI
         return false;
     }
 }
 
 /**
- * Retrieves the IDs of events for which a user has won a giveaway.
- * In a real app, this would be triggered by a secure backend process after drawing winners.
- * This mock function reads from a dedicated user subcollection.
+ * Retrieves the IDs of events for which a user has won a giveaway from Prisma.
  *
  * @param userId The ID of the user.
  * @returns A promise that resolves to an array of event IDs the user has won.
  */
 export async function checkGiveawayWins(userId: string): Promise<string[]> {
     try {
-        const winsCollection = getUserGiveawayWinsCollection(userId);
-        const winsSnapshot = await getDocs(winsCollection);
-        // The document ID in this subcollection IS the won event ID
-        const wonEventIds = winsSnapshot.docs.map(doc => doc.id);
+        const wins = await prisma.giveawayWin.findMany({
+            where: { userId: userId },
+            select: { eventId: true }, // Only select the event ID
+        });
+        const wonEventIds = wins.map(win => win.eventId);
         console.log(`User ${userId} found wins for events:`, wonEventIds);
         return wonEventIds;
     } catch (error) {
-        console.error("Error checking giveaway wins: ", error);
-        return []; // Return empty array on error
+        console.error("Error checking giveaway wins from Prisma: ", error);
+        return [];
     }
 }
 
 /**
- * Mock/Helper function to simulate marking a user as a winner.
- * In a real app, this logic belongs in a secure backend function.
- * Adds the event ID to the user's `giveawayWins` subcollection.
+ * Marks a user as a winner for a specific event in Prisma.
+ * Also adds a corresponding ticket to the UserTicket table.
+ * In a real app, this logic should be in a secure backend function.
  *
  * @param userId The ID of the winning user.
  * @param eventId The ID of the event won.
  */
 export async function markUserAsWinner(userId: string, eventId: string): Promise<void> {
     try {
-        const winRef = doc(db, 'users', userId, 'giveawayWins', eventId);
-        // Store minimal data, or perhaps details about the win if needed
-        await setDoc(winRef, {
-            wonAt: serverTimestamp(),
-        });
-        console.log(`Marked user ${userId} as winner for event ${eventId}`);
-
-        // Also automatically add a giveaway ticket to their collection
-        await addGiveawayTicketToUser(userId, eventId);
-
-    } catch (error) {
-        console.error(`Error marking user ${userId} as winner for ${eventId}:`, error);
-    }
-}
-
-/**
- * Adds a giveaway ticket to the user's ticket collection.
- * Typically called after a user is confirmed as a winner.
- *
- * @param userId The ID of the user.
- * @param eventId The ID of the event.
- */
-export async function addGiveawayTicketToUser(userId: string, eventId: string): Promise<void> {
-    try {
-        const event = await getMusicEventById(eventId);
+        const event = await prisma.musicEvent.findUnique({ where: { id: eventId } });
         if (!event) {
-            console.error(`Cannot add ticket: Event ${eventId} not found.`);
+            console.error(`Cannot mark winner: Event ${eventId} not found.`);
             return;
         }
 
-        const ticketsCollection = getUserTicketsCollection(userId);
-        const newTicketRef = doc(ticketsCollection); // Auto-generate ticket ID
+        // Use transaction to ensure both win record and ticket are created
+        await prisma.$transaction(async (tx) => {
+            // 1. Create the win record
+            await tx.giveawayWin.upsert({ // Use upsert to avoid errors if called multiple times
+                where: { userId_eventId: { userId, eventId } },
+                update: {}, // No update needed if exists
+                create: {
+                    userId: userId,
+                    eventId: eventId,
+                    eventName: event.name, // Store event name
+                    // wonAt handled by @default(now())
+                },
+            });
+            console.log(`Marked user ${userId} as winner for event ${eventId}`);
 
-        const newTicket: Omit<UserTicket, 'ticketId'> = { // Exclude ticketId as it's the doc ID
-            eventId: event.id,
-            eventName: event.name,
-            venue: event.venue,
-            dateTime: event.dateTime, // Store event time
-            type: 'giveaway',
-            qrCodeData: `GIVEAWAY-${userId}-${eventId}-${newTicketRef.id}`, // Mock QR data
-            acquiredAt: serverTimestamp(),
-        };
+            // 2. Add the giveaway ticket (only if win was just created or doesn't have a ticket yet)
+            // Check if a giveaway ticket for this user/event already exists
+            const existingTicket = await tx.userTicket.findFirst({
+                 where: {
+                     userId: userId,
+                     eventId: eventId,
+                     type: 'giveaway',
+                 }
+             });
 
-        await setDoc(newTicketRef, newTicket);
-        console.log(`Giveaway ticket for event ${eventId} added to user ${userId}`);
+             if (!existingTicket) {
+                 const newTicket = await tx.userTicket.create({
+                    data: {
+                        userId: userId,
+                        eventId: event.id,
+                        eventName: event.name,
+                        venue: event.venue,
+                        eventDateTime: event.dateTime, // Store event time
+                        type: 'giveaway',
+                        // Generate a unique QR code based on ticket ID (available after creation)
+                        // We'll use a placeholder for now and potentially update it later if needed
+                        qrCodeData: `GIVEAWAY-${userId}-${eventId}-TEMP`,
+                        // acquiredAt handled by @default(now())
+                    },
+                 });
+                 // Update QR code with actual ticket ID
+                 await tx.userTicket.update({
+                     where: { id: newTicket.id },
+                     data: { qrCodeData: `GIVEAWAY-${userId}-${eventId}-${newTicket.id}` }
+                 });
+                console.log(`Giveaway ticket ${newTicket.id} for event ${eventId} added to user ${userId}`);
+             } else {
+                 console.log(`Giveaway ticket already exists for user ${userId} and event ${eventId}`);
+             }
+        });
 
     } catch (error) {
-        console.error(`Error adding giveaway ticket for user ${userId}, event ${eventId}:`, error);
+        console.error(`Error marking user ${userId} as winner for ${eventId}:`, error);
+         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            // This might happen if the upsert finds an existing win but the transaction
+            // tries to create a ticket that also exists due to race conditions outside the transaction.
+            // Usually safe to ignore if the goal is idempotency.
+             console.warn(`User ${userId} likely already marked as winner and has ticket for ${eventId}.`);
+         } else {
+            // Rethrow other errors
+            throw error;
+         }
     }
 }
 
 
 /**
- * Simulates purchasing a ticket and adds it to the user's collection.
+ * Simulates purchasing a ticket and adds it to the user's collection using Prisma.
  * In a real app, this would follow successful payment processing.
  *
  * @param userId The ID of the user purchasing the ticket.
  * @param eventId The ID of the event.
- * @returns A promise that resolves to true if the ticket was successfully added.
+ * @returns A promise that resolves to the created UserTicket or null on failure.
  */
-export async function purchaseTicket(userId: string, eventId: string): Promise<boolean> {
+export async function purchaseTicket(userId: string, eventId: string): Promise<UserTicket | null> {
      try {
-        const event = await getMusicEventById(eventId);
+        const event = await prisma.musicEvent.findUnique({ where: { id: eventId } });
         if (!event || event.ticketPrice === null) {
             console.error(`Cannot purchase ticket for free or non-existent event ${eventId}`);
-            return false;
+            return null;
         }
 
         // TODO: Integrate actual payment gateway logic here
 
         // If payment successful, add ticket to user's collection
-        const ticketsCollection = getUserTicketsCollection(userId);
-        const newTicketRef = doc(ticketsCollection); // Auto-generate ticket ID
-
-        const newTicket: Omit<UserTicket, 'ticketId'> = {
+        const newTicketData = {
+            userId: userId,
             eventId: event.id,
             eventName: event.name,
             venue: event.venue,
-            dateTime: event.dateTime, // Store event time
+            eventDateTime: event.dateTime,
             type: 'purchased',
-            qrCodeData: `PURCHASE-${userId}-${eventId}-${newTicketRef.id}`, // Mock QR data
-            acquiredAt: serverTimestamp(),
+            qrCodeData: `PURCHASE-${userId}-${eventId}-TEMP`, // Placeholder
         };
 
-        await setDoc(newTicketRef, newTicket);
-        console.log(`Purchased ticket for event ${eventId} added to user ${userId}`);
-        return true;
+        const newTicket = await prisma.userTicket.create({ data: newTicketData });
+
+        // Update QR code with actual ID
+        const finalTicket = await prisma.userTicket.update({
+            where: { id: newTicket.id },
+            data: { qrCodeData: `PURCHASE-${userId}-${eventId}-${newTicket.id}` }
+        });
+
+
+        console.log(`Purchased ticket ${finalTicket.id} for event ${eventId} added to user ${userId}`);
+        return prismaToUserTicket(finalTicket);
 
     } catch (error) {
         console.error(`Error purchasing ticket for user ${userId}, event ${eventId}:`, error);
-        return false;
+        return null;
     }
 }
 
 
 /**
- * Retrieves all tickets (purchased and won) for a specific user from Firestore.
+ * Retrieves all tickets (purchased and won) for a specific user from Prisma.
  *
  * @param userId The ID of the user.
  * @returns A promise that resolves to an array of UserTicket objects.
  */
 export async function getUserTickets(userId: string): Promise<UserTicket[]> {
    try {
-        const ticketsCollection = getUserTicketsCollection(userId);
-        const ticketsSnapshot = await getDocs(ticketsCollection);
-        const tickets = ticketsSnapshot.docs.map(snapshotToUserTicket);
-
-        // Sort tickets by event date (most recent first)
-        tickets.sort((a, b) => b.dateTime.toMillis() - a.dateTime.toMillis());
+        const prismaTickets = await prisma.userTicket.findMany({
+            where: { userId: userId },
+            orderBy: {
+                eventDateTime: 'desc', // Order by event date descending
+            },
+        });
+        const tickets = prismaTickets.map(prismaToUserTicket);
 
         console.log(`Retrieved ${tickets.length} tickets for user ${userId}`);
         return tickets;
     } catch (error) {
-        console.error(`Error fetching tickets for user ${userId}:`, error);
-        return []; // Return empty array on error
+        console.error(`Error fetching tickets for user ${userId} from Prisma:`, error);
+        return [];
     }
 }
 
 
 // --- Mock Data Generation (Keep for Seeding/Testing) ---
+// This function provides data in the structure expected by prisma/seed.ts
 
-function getMockEvents(): Omit<MusicEvent, 'id' | 'createdAt' | 'dateTime' | 'giveawayEndDate'> & { dateTime: string; giveawayEndDate?: string }[] {
-    // Returns the raw mock data structure with string dates
+// Return type adjusted to match the structure needed for seeding (before prisma transforms it)
+export function getMockEvents(): Array<Omit<PrismaMusicEvent, 'id' | 'createdAt' | 'updatedAt' | 'giveawayEntries' | 'giveawayWins' | 'tickets'> & { dateTime: string; giveawayEndDate?: string | null }> {
     return [
         {
             name: 'Warehouse Echoes',
@@ -424,14 +374,15 @@ function getMockEvents(): Omit<MusicEvent, 'id' | 'createdAt' | 'dateTime' | 'gi
             artistBio: 'Synth System is a pioneering duo known for their atmospheric techno soundscapes and driving rhythms. Formed in Berlin, they have played major festivals worldwide.',
             venue: 'The Steel Yard',
             venueDetails: '1 Industrial Way, Metro City. Capacity: 1500. Underground vibe, state-of-the-art sound system.',
-            location: { lat: 40.7128, lng: -74.0060 },
-            dateTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-            ticketPrice: 35,
-            ticketUrl: '#',
+            lat: 40.7128, // New York City approx
+            lng: -74.0060,
+            dateTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week from now
+            ticketPrice: 35.00, // Use float
+            ticketUrl: '#', // Placeholder URL
             description: 'Experience the depths of techno with Synth System. A night of hypnotic beats and immersive visuals.',
             imageUrl: 'https://picsum.photos/seed/techno1/600/400',
             giveawayActive: true,
-            giveawayEndDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+            giveawayEndDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
             giveawayTickets: 5,
           },
           {
@@ -440,13 +391,16 @@ function getMockEvents(): Omit<MusicEvent, 'id' | 'createdAt' | 'dateTime' | 'gi
             artistBio: 'Voltage Vixen electrifies crowds with her high-energy electro sets, blending classic sounds with futuristic bangers. A staple in the underground scene.',
             venue: 'Circuit Club',
             venueDetails: '25 Electric Ave, Metro City. Capacity: 800. Intimate venue with a focus on lighting and sound quality.',
-            location: { lat: 40.7580, lng: -73.9855 },
-            dateTime: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-            ticketPrice: 28,
+            lat: 34.0522, // Los Angeles approx
+            lng: -118.2437,
+            dateTime: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 2 weeks from now
+            ticketPrice: 28.00, // Use float
             ticketUrl: '#',
             description: 'Get charged up with Voltage Vixen! An unforgettable night of pure electro energy.',
             imageUrl: 'https://picsum.photos/seed/electro2/600/400',
             giveawayActive: false,
+            giveawayEndDate: null,
+            giveawayTickets: null,
           },
           {
             name: 'Groove Sanctuary',
@@ -454,14 +408,15 @@ function getMockEvents(): Omit<MusicEvent, 'id' | 'createdAt' | 'dateTime' | 'gi
             artistBio: 'Bringing soulful house vibes, Rhythm Ritualist creates uplifting sets that make you move. Feel-good music for feel-good people.',
             venue: 'The Loft',
             venueDetails: 'Penthouse, 100 Skyline Dr, Metro City. Capacity: 300. Rooftop venue with city views.',
-            location: { lat: 40.748817, lng: -73.985428 },
-            dateTime: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
-            ticketPrice: 40,
+            lat: 41.8781, // Chicago approx
+            lng: -87.6298,
+            dateTime: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(), // 3 weeks from now
+            ticketPrice: 40.00, // Use float
             ticketUrl: '#',
             description: 'Find your groove in the sanctuary. Uplifting house music all night long.',
             imageUrl: 'https://picsum.photos/seed/house3/600/400',
             giveawayActive: true,
-            giveawayEndDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+            giveawayEndDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days from now
             giveawayTickets: 2,
           },
            {
@@ -470,26 +425,50 @@ function getMockEvents(): Omit<MusicEvent, 'id' | 'createdAt' | 'dateTime' | 'gi
             artistBio: 'Shadow Code delves into the darker, industrial side of techno. Expect relentless beats and an intense atmosphere.',
             venue: 'The Bunker',
             venueDetails: 'Basement, 50 Deep St, Metro City. Capacity: 500. Raw, industrial space.',
-            location: { lat: 40.7128, lng: -74.0060 },
-            dateTime: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-            ticketPrice: 30,
+            lat: 51.5074, // London approx
+            lng: -0.1278,
+            dateTime: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days from now
+            ticketPrice: 30.00, // Use float
             ticketUrl: '#',
             description: 'Descend into the Abyss. A night of hard-hitting, dark techno.',
             imageUrl: 'https://picsum.photos/seed/darktechno4/600/400',
             giveawayActive: false,
+            giveawayEndDate: null,
+            giveawayTickets: null,
+          },
+          {
+            name: 'Future Sound',
+            artist: 'Data Flow',
+            artistBio: 'Data Flow merges intricate sound design with progressive techno rhythms, creating a journey for the listener.',
+            venue: 'The Hub',
+            venueDetails: 'Central Tech Park, Building 7, Metro City. Capacity: 1000. Modern venue with advanced AV.',
+            lat: 37.7749, // San Francisco approx
+            lng: -122.4194,
+            dateTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 1 month from now
+            ticketPrice: null, // Free Event
+            ticketUrl: '#',
+            description: 'Explore the future sound of techno with Data Flow. Free entry!',
+            imageUrl: 'https://picsum.photos/seed/future5/600/400',
+            giveawayActive: false, // No giveaway for free events usually
+            giveawayEndDate: null,
+            giveawayTickets: null,
+          },
+          {
+            name: 'Retro Wave Rave',
+            artist: '8-Bit Beats',
+            artistBio: '8-Bit Beats throws it back with chiptune-infused electro house. Nostalgia meets the dance floor.',
+            venue: 'Arcade Palace',
+            venueDetails: '1984 Gamer St, Metro City. Capacity: 600. Retro arcade theme.',
+            lat: 35.6895, // Tokyo approx
+            lng: 139.6917,
+            dateTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
+            ticketPrice: 25.00, // Use float
+            ticketUrl: '#',
+            description: 'Power up! A retro wave rave featuring 8-Bit Beats.',
+            imageUrl: 'https://picsum.photos/seed/retro6/600/400',
+            giveawayActive: true,
+            giveawayEndDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
+            giveawayTickets: 10,
           },
     ];
 }
-
-// Flag to ensure seeding only happens once per app lifecycle/server start
-let hasSeeded = false;
-
-async function seedInitialEventsIfNeeded() {
-    if (!hasSeeded) {
-        await seedInitialEvents();
-        hasSeeded = true;
-    }
-}
-
-// Initialize seeding check when module loads (optional, ensures seeding happens early)
-// seedInitialEventsIfNeeded();

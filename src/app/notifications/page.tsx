@@ -1,23 +1,23 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { checkGiveawayWins, getMusicEventById } from '@/services/event';
-import type { MusicEvent } from '@/services/event';
+import { checkGiveawayWins, getMusicEventById } from '@/services/event'; // Use Prisma-based services
+import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { BellRing, Gift, Ticket, Info, Loader2, UserRoundX } from 'lucide-react'; // Added UserRoundX
+import { BellRing, Gift, Ticket, Info, Loader2, UserRoundX } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth'; // Import useAuth hook
+import { useAuth } from '@/hooks/useAuth';
 
 export default function NotificationsPage() {
-  const { user, loading: authLoading } = useAuth(); // Get user and loading state
-  const [wins, setWins] = useState<MusicEvent[]>([]);
+  const { user, loading: authLoading } = useAuth();
+  const [wins, setWins] = useState<MusicEvent[]>([]); // Store full MusicEvent objects (Prisma type)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-     // Only fetch notifications if auth has loaded and a user is logged in
      if (!authLoading && user) {
         const fetchWins = async () => {
           try {
@@ -26,10 +26,13 @@ export default function NotificationsPage() {
             const wonEventIds = await checkGiveawayWins(user.uid); // Use actual user ID
             const wonEventsDetails: MusicEvent[] = [];
 
+            // Fetch details for each won event ID
             for (const eventId of wonEventIds) {
-              const eventDetails = await getMusicEventById(eventId);
+              const eventDetails = await getMusicEventById(eventId); // Fetch full event details (Prisma type)
               if (eventDetails) {
                 wonEventsDetails.push(eventDetails);
+              } else {
+                  console.warn(`Could not fetch details for won event ID: ${eventId}`);
               }
             }
             setWins(wonEventsDetails);
@@ -42,13 +45,12 @@ export default function NotificationsPage() {
         };
         fetchWins();
      } else if (!authLoading && !user) {
-        // If auth loaded but no user, stop loading
         setLoading(false);
-        setWins([]); // Ensure wins array is empty
+        setWins([]);
      }
-  }, [user, authLoading]); // Depend on user and authLoading state
+  }, [user, authLoading]);
 
-  const isLoading = loading || authLoading; // Combined loading state
+  const isLoading = loading || authLoading;
 
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
@@ -95,6 +97,7 @@ export default function NotificationsPage() {
       {!isLoading && user && wins.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-green-400">Giveaway Wins!</h2>
+          {/* Render based on the fetched MusicEvent details */}
           {wins.map((event) => (
             <Card key={event.id} className="bg-gradient-to-r from-green-900/30 via-card to-card border-green-500 shadow-lg">
               <CardHeader>
@@ -105,10 +108,13 @@ export default function NotificationsPage() {
               <CardContent className="space-y-2">
                  <p className="font-semibold text-lg">{event.name}</p>
                  <p className="text-muted-foreground">Congratulations! You've won tickets to {event.artist} at {event.venue}.</p>
-                 {/* Add instructions on how to claim tickets here */}
                  <p className="text-sm text-primary font-medium">Check 'My Tickets' section to see your winnings!</p>
                  <Button asChild variant="outline" size="sm" className="mt-2 border-primary text-primary hover:bg-primary/10">
+                     {/* Link using event.id */}
                      <Link href={`/events/${event.id}`}>View Event</Link>
+                 </Button>
+                 <Button asChild variant="secondary" size="sm" className="mt-2 ml-2">
+                     <Link href="/my-tickets">Go to My Tickets</Link>
                  </Button>
               </CardContent>
             </Card>

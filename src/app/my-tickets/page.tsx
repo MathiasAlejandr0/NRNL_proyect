@@ -1,11 +1,12 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getUserTickets } from '@/services/event';
-import type { UserTicket } from '@/services/event';
+import { getUserTickets } from '@/services/event'; // Use Prisma-based service
+import type { UserTicket } from '@/services/event'; // Use adapted Prisma-based type
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Ticket, QrCode, CalendarDays, Clock, MapPin, Gift, Info, Loader2, UserRoundX } from 'lucide-react'; // Added UserRoundX
+import { Ticket, QrCode, CalendarDays, Clock, MapPin, Gift, Info, Loader2, UserRoundX } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -13,13 +14,12 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth'; // Import useAuth hook
 
 export default function MyTicketsPage() {
-  const { user, loading: authLoading } = useAuth(); // Get user and loading state from AuthContext
+  const { user, loading: authLoading } = useAuth();
   const [tickets, setTickets] = useState<UserTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Only fetch tickets if auth has loaded and a user is logged in
     if (!authLoading && user) {
       const fetchTickets = async () => {
         try {
@@ -37,14 +37,12 @@ export default function MyTicketsPage() {
 
       fetchTickets();
     } else if (!authLoading && !user) {
-        // If auth loaded but no user, stop loading and show login prompt
         setLoading(false);
-        setTickets([]); // Ensure tickets array is empty
+        setTickets([]);
     }
-    // Wait for auth state to be determined before fetching tickets
-  }, [user, authLoading]); // Depend on user and authLoading state
+  }, [user, authLoading]);
 
-   const isLoading = loading || authLoading; // Combined loading state
+  const isLoading = loading || authLoading;
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
@@ -94,14 +92,17 @@ export default function MyTicketsPage() {
       {!isLoading && user && tickets.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {tickets.map((ticket) => {
-             const formattedDate = format(new Date(ticket.dateTime), 'eee, MMM d, yyyy');
-             const formattedTime = format(new Date(ticket.dateTime), 'h:mm a');
+             // Use ticket.dateTime which is already a Date object from Prisma
+             const formattedDate = format(ticket.dateTime, 'eee, MMM d, yyyy');
+             const formattedTime = format(ticket.dateTime, 'h:mm a');
              return (
+                // Use ticket.ticketId (which maps to Prisma's id)
                 <Card key={ticket.ticketId} className="overflow-hidden border border-border shadow-lg bg-gradient-to-br from-card via-card/95 to-card/90">
                   <CardHeader>
                     <div className="flex justify-between items-start gap-2">
                          <div>
                              <CardTitle className="text-xl font-bold text-primary">{ticket.eventName}</CardTitle>
+                             {/* Use ticket.ticketId */}
                              <CardDescription className="text-muted-foreground">Ticket ID: {ticket.ticketId}</CardDescription>
                          </div>
                          <Badge variant={ticket.type === 'giveaway' ? 'destructive' : 'secondary'} className="capitalize whitespace-nowrap">
@@ -128,6 +129,7 @@ export default function MyTicketsPage() {
                      </div>
                   </CardContent>
                   <CardFooter>
+                      {/* Use ticket.eventId */}
                      <Button asChild variant="outline" size="sm" className="w-full border-primary text-primary hover:bg-primary/10">
                          <Link href={`/events/${ticket.eventId}`}>View Event Details</Link>
                      </Button>

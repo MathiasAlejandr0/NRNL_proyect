@@ -1,29 +1,33 @@
+
 import { EventList } from '@/components/EventList';
 import { FeaturedArtistCard } from '@/components/FeaturedArtistCard';
-import { getMusicEvents } from '@/services/event';
+import { getMusicEvents } from '@/services/event'; // Use Prisma-based service
+import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
 import { Music, Star, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default async function HomePage() {
-  let allEvents = [];
-  let featuredEvent = null;
-  let fetchError = null;
+  let allEvents: MusicEvent[] = [];
+  let featuredEvent: MusicEvent | null = null;
+  let fetchError: string | null = null;
 
   try {
+    // Fetch events using Prisma service (returns Prisma MusicEvent type)
     allEvents = await getMusicEvents();
+
+    // Filter upcoming events and sort (Prisma returns Date objects)
     const upcomingEvents = allEvents
-      // Ensure dateTime is valid and convert Timestamp to Date for comparison
-      .filter(event => event.dateTime && event.dateTime.toDate() > new Date())
-      // Sort by date using Timestamps
-      .sort((a, b) => a.dateTime.toMillis() - b.dateTime.toMillis());
+      .filter(event => event.dateTime && event.dateTime > new Date())
+      // Sorting is already done by getMusicEvents, but double-check if needed
+      .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
 
     // Select the first upcoming event's artist as featured
     featuredEvent = upcomingEvents.length > 0 ? upcomingEvents[0] : null;
+
   } catch (error) {
      console.error("Failed to fetch events for Home Page:", error);
      fetchError = "Could not load event data. Please try again later.";
-     // featuredEvent remains null, initialEvents will be empty for EventList
-     allEvents = [];
+     allEvents = []; // Ensure empty array on error
   }
 
   return (
@@ -44,12 +48,19 @@ export default async function HomePage() {
             <h2 className="text-3xl font-bold text-center flex items-center justify-center gap-2 border-b pb-2 border-primary/30">
                <Star className="w-7 h-7 text-accent" /> Artist of the Week
             </h2>
+           {/* Pass the Prisma event object directly */}
            <FeaturedArtistCard event={featuredEvent} />
          </section>
        )}
-        {!featuredEvent && !fetchError && (
-             <div className="text-center text-muted-foreground">No upcoming featured artists this week.</div>
+        {/* Added condition for when no upcoming events exist but no error occurred */}
+        {!featuredEvent && !fetchError && allEvents.length > 0 && (
+             <div className="text-center text-muted-foreground py-4">No upcoming featured artists this week.</div>
         )}
+        {/* Keep existing no events message if allEvents is empty and no error */}
+         {!featuredEvent && !fetchError && allEvents.length === 0 && (
+             <div className="text-center text-muted-foreground py-4">No events scheduled yet. Check back soon!</div>
+         )}
+
 
        {/* Upcoming Events Section */}
        <section className="space-y-4">
@@ -61,11 +72,10 @@ export default async function HomePage() {
                <AlertDescription>{fetchError}</AlertDescription>
              </Alert>
           ) : (
-            /* Pass fetched events (or empty array on error) to EventList */
+            /* Pass fetched Prisma events (or empty array on error) to EventList */
             <EventList initialEvents={allEvents} />
           )}
        </section>
      </div>
   );
 }
-    

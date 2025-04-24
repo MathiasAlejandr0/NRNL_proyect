@@ -1,5 +1,5 @@
 
-import type { MusicEvent } from '@/services/event';
+import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
 import Link from 'next/link';
 import Image from 'next/image';
 import { CalendarDays, MapPin, Ticket } from 'lucide-react';
@@ -9,11 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { FormattedEventTime } from './FormattedEventTime'; // Import the client component
 
 interface FeaturedArtistCardProps {
-  event: MusicEvent; // We use the event data to display artist and event info
+  event: MusicEvent; // Use Prisma-generated type
 }
 
 export function FeaturedArtistCard({ event }: FeaturedArtistCardProps) {
-  // Formatting moved to FormattedEventTime component
+
+  // ticketPrice is already a number (Float) or null from Prisma
+  const ticketPriceNumber = event.ticketPrice;
 
   return (
     <Card className="overflow-hidden border border-accent shadow-lg hover:shadow-accent/30 transition-shadow duration-300 bg-gradient-to-bl from-card via-card/90 to-accent/10">
@@ -48,23 +50,25 @@ export function FeaturedArtistCard({ event }: FeaturedArtistCardProps) {
                  <div className="space-y-1 text-sm text-muted-foreground">
                    <div className="flex items-center gap-2">
                      <CalendarDays className="w-4 h-4 text-primary/80" />
-                     {/* Use FormattedEventTime for date and time */}
+                     {/* Pass Prisma Date object */}
                      <FormattedEventTime dateTime={event.dateTime} formatString="eee, MMM d, yyyy 'at' h:mm a" />
                    </div>
                    <div className="flex items-center gap-2">
                      <MapPin className="w-4 h-4 text-primary/80" />
                      <span className="truncate">{event.venue}</span>
                    </div>
-                    {event.ticketPrice !== null && (
+                    {/* Use formatted ticket price */}
+                    {ticketPriceNumber !== null && (
                         <div className="flex items-center gap-2">
                             <Ticket className="w-4 h-4 text-primary/80" />
-                            <span>Tickets: ${event.ticketPrice}</span>
+                            <span>Tickets: ${ticketPriceNumber.toFixed(2)}</span>
                         </div>
                     )}
                  </div>
              </div>
           </CardContent>
           <CardFooter className="p-4 pt-0">
+             {/* Link uses event.id */}
             <Button asChild variant="default" size="lg" className="w-full md:w-auto bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity shadow-md">
               <Link href={`/events/${event.id}`}>View Event Details</Link>
             </Button>
@@ -74,4 +78,3 @@ export function FeaturedArtistCard({ event }: FeaturedArtistCardProps) {
     </Card>
   );
 }
-    

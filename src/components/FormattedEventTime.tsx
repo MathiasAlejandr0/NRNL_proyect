@@ -1,11 +1,12 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import type { Timestamp } from 'firebase/firestore'; // Import Timestamp type
+import type { Timestamp } from 'firebase/firestore'; // Keep for potential mixed usage if needed, though Prisma uses Date
 
 interface FormattedEventTimeProps {
-    dateTime: Timestamp | string; // Accept Timestamp or ISO string
+    dateTime: Timestamp | Date | string; // Accept Timestamp, Date object, or ISO string
     formatString?: string; // Optional custom format
 }
 
@@ -13,13 +14,15 @@ export function FormattedEventTime({ dateTime, formatString = "eee, MMM d 'at' h
     const [formattedDateTime, setFormattedDateTime] = useState<string | null>(null);
 
     useEffect(() => {
-        // Ensure this runs only on the client after mounting
         try {
             let date: Date;
-            if (typeof dateTime === 'string') {
+            if (dateTime instanceof Date) {
+                 date = dateTime; // Already a Date object (from Prisma)
+            } else if (typeof dateTime === 'string') {
                 date = new Date(dateTime); // Handle ISO string input
-            } else if (dateTime && typeof dateTime.toDate === 'function') {
-                date = dateTime.toDate(); // Convert Firestore Timestamp to JS Date
+            } else if (dateTime && typeof (dateTime as Timestamp).toDate === 'function') {
+                 // Handle potential Firestore Timestamp object
+                date = (dateTime as Timestamp).toDate();
             } else {
                  throw new Error("Invalid date/timestamp provided");
             }

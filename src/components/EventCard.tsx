@@ -1,5 +1,5 @@
 
-import type { MusicEvent } from '@/services/event';
+import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, CalendarDays, Ticket } from 'lucide-react';
@@ -9,14 +9,18 @@ import { Button } from '@/components/ui/button';
 import { FormattedEventTime } from './FormattedEventTime'; // Use the client component
 
 interface EventCardProps {
-  event: MusicEvent;
+  event: MusicEvent; // Use Prisma-generated type
 }
 
 export function EventCard({ event }: EventCardProps) {
 
+   // ticketPrice is already a number (Float) or null from Prisma
+   const ticketPriceNumber = event.ticketPrice;
+
   return (
     <Card className="overflow-hidden group border border-border hover:border-primary transition-colors duration-300 shadow-lg hover:shadow-primary/20 flex flex-col h-full bg-gradient-to-br from-card via-card/95 to-card/90">
       <CardHeader className="p-0 relative">
+         {/* Link uses event.id */}
         <Link href={`/events/${event.id}`} className="block">
           <Image
             src={event.imageUrl}
@@ -33,6 +37,7 @@ export function EventCard({ event }: EventCardProps) {
          )}
       </CardHeader>
       <CardContent className="p-4 flex-grow">
+         {/* Link uses event.id */}
         <Link href={`/events/${event.id}`} className="block">
             <CardTitle className="text-xl font-bold mb-2 hover:text-primary transition-colors truncate">{event.name}</CardTitle>
         </Link>
@@ -41,7 +46,7 @@ export function EventCard({ event }: EventCardProps) {
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-primary" />
-            {/* Use the client component for formatting Firestore Timestamp */}
+            {/* Pass the Prisma Date object */}
             <FormattedEventTime dateTime={event.dateTime} />
           </div>
           <div className="flex items-center gap-2">
@@ -50,11 +55,13 @@ export function EventCard({ event }: EventCardProps) {
           </div>
           <div className="flex items-center gap-2">
             <Ticket className="w-4 h-4 text-primary" />
-            <span>{event.ticketPrice !== null ? `$${event.ticketPrice}` : 'Free'}</span>
+            {/* Display formatted ticket price */}
+            <span>{ticketPriceNumber !== null ? `$${ticketPriceNumber.toFixed(2)}` : 'Free'}</span>
           </div>
         </div>
       </CardContent>
       <CardFooter className="p-4 pt-0">
+         {/* Link uses event.id */}
         <Button asChild variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 hover:text-primary">
           <Link href={`/events/${event.id}`}>View Details</Link>
         </Button>
@@ -62,4 +69,3 @@ export function EventCard({ event }: EventCardProps) {
     </Card>
   );
 }
-    

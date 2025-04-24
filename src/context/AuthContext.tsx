@@ -1,9 +1,11 @@
+
 'use client';
 
 import type { ReactNode } from 'react';
 import { createContext, useState, useEffect, useMemo } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
+import { createUserProfileDocument } from '@/services/user'; // Import the Prisma user service function
 import { Loader2 } from 'lucide-react';
 
 export interface AuthContextType {
@@ -23,8 +25,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     // Subscribe to Firebase auth state changes
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => { // Make listener async
       setUser(currentUser);
+      if (currentUser) {
+         // If user is logged in, ensure their profile exists in Prisma DB
+         try {
+             // Call the Prisma-based user service function
+             await createUserProfileDocument(currentUser);
+         } catch (error) {
+              console.error("Failed to ensure user profile exists in DB:", error);
+              // Handle error appropriately, maybe log out user or show error message
+         }
+      }
       setLoading(false);
       console.log("Auth State Changed. User:", currentUser?.uid);
     });

@@ -1,50 +1,49 @@
+
 'use client';
 
-import type { MusicEvent } from '@/services/event';
+import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
 import { useState, useEffect } from 'react';
-import { enterGiveaway, hasUserEnteredGiveaway } from '@/services/event';
+import { enterGiveaway, hasUserEnteredGiveaway } from '@/services/event'; // Use Prisma-based services
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gift, Clock, CheckCircle, AlertCircle, Loader2, UserRoundX } from 'lucide-react'; // Added UserRoundX
+import { Gift, Clock, CheckCircle, AlertCircle, Loader2, UserRoundX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatDistanceToNowStrict, parseISO } from 'date-fns';
-import { useAuth } from '@/hooks/useAuth'; // Import useAuth hook
-import Link from 'next/link'; // Import Link
+import { formatDistanceToNowStrict, isBefore } from 'date-fns'; // Removed parseISO, Prisma gives Date
+import { useAuth } from '@/hooks/useAuth';
+import Link from 'next/link';
 
 interface GiveawaySectionProps {
-  event: MusicEvent;
+  event: MusicEvent; // Expect Prisma-generated type
 }
 
 export function GiveawaySection({ event }: GiveawaySectionProps) {
-  const { user, loading: authLoading } = useAuth(); // Get user and auth loading state
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isEntered, setIsEntered] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Loading state for initial check
-  const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for submission
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Only check status if auth is loaded, user exists, and giveaway is active
     if (!authLoading && user && event.giveawayActive) {
       const checkEntryStatus = async () => {
         try {
           setIsLoading(true);
-          const entered = await hasUserEnteredGiveaway(user.uid, event.id); // Use actual user ID
+          // Use Prisma-based service
+          const entered = await hasUserEnteredGiveaway(user.uid, event.id);
           setIsEntered(entered);
         } catch (err) {
           console.error("Failed to check giveaway status:", err);
-          // Don't block UI for this, maybe show a subtle error
         } finally {
           setIsLoading(false);
         }
       };
       checkEntryStatus();
     } else {
-        // If no user or giveaway not active, stop loading
         setIsLoading(false);
-        setIsEntered(false); // Ensure isEntered is false
+        setIsEntered(false);
     }
-  }, [event.id, event.giveawayActive, user, authLoading]); // Depend on user and authLoading
+  }, [event.id, event.giveawayActive, user, authLoading]);
 
   const handleEnterGiveaway = async () => {
      if (!user) {
@@ -53,13 +52,14 @@ export function GiveawaySection({ event }: GiveawaySectionProps) {
              description: "You need to be logged in to enter the giveaway.",
              variant: "destructive",
            });
-         return; // Don't proceed if user is not logged in
+         return;
      }
 
     setIsSubmitting(true);
     setError(null);
     try {
-      const success = await enterGiveaway(user.uid, event.id); // Use actual user ID
+      // Use Prisma-based service
+      const success = await enterGiveaway(user.uid, event.id);
       if (success) {
         setIsEntered(true);
         toast({
@@ -70,9 +70,10 @@ export function GiveawaySection({ event }: GiveawaySectionProps) {
         });
       } else {
          const now = new Date();
-         const endDate = event.giveawayEndDate ? parseISO(event.giveawayEndDate) : null;
+         // Use Date object or null from Prisma directly
+         const endDate = event.giveawayEndDate;
          let reason = "Could not enter giveaway. It might be closed or you've already entered.";
-         if (endDate && now > endDate) {
+         if (endDate && isBefore(endDate, now)) { // Check if end date is in the past
              reason = "Could not enter giveaway. The entry period has ended.";
          }
 
@@ -98,11 +99,12 @@ export function GiveawaySection({ event }: GiveawaySectionProps) {
   };
 
   if (!event.giveawayActive) {
-    return null; // Don't render if giveaway isn't active
+    return null;
   }
 
-  const endDate = event.giveawayEndDate ? parseISO(event.giveawayEndDate) : null;
-  const isGiveawayOpen = endDate ? new Date() < endDate : true; // Assume open if no end date
+   // Use Date object or null from Prisma for giveawayEndDate
+  const endDate = event.giveawayEndDate;
+  const isGiveawayOpen = endDate ? isBefore(new Date(), endDate) : true; // Check if now is before end date
   const timeLeft = endDate && isGiveawayOpen ? formatDistanceToNowStrict(endDate, { addSuffix: true }) : null;
 
   const showLoadingSpinner = isLoading || authLoading;
@@ -148,7 +150,7 @@ export function GiveawaySection({ event }: GiveawaySectionProps) {
         ) : isGiveawayOpen ? (
           <Button
             onClick={handleEnterGiveaway}
-            disabled={isSubmitting || !user} // Disable if submitting or no user
+            disabled={isSubmitting || !user}
             className="w-full bg-accent text-accent-foreground hover:bg-accent/90 transition-colors shadow-md disabled:opacity-70"
           >
             {isSubmitting ? (
@@ -160,9 +162,9 @@ export function GiveawaySection({ event }: GiveawaySectionProps) {
               'Enter Giveaway'
             )}
           </Button>
-        ) : null /* Don't show button if closed and not entered */}
+        ) : null}
 
-        {error && !isEntered && user && ( // Show error only if user is logged in and not successfully entered
+        {error && !isEntered && user && (
            <p className="text-xs text-destructive flex items-center gap-1 mt-2">
               <AlertCircle className="w-3 h-3" /> {error}
            </p>

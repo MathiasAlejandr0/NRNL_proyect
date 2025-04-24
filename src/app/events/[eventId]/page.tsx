@@ -3,7 +3,6 @@ import { getMusicEventById } from '@/services/event';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-// Removed date-fns import here, formatting handled by FormattedEventTime
 import { MapPin, CalendarDays, Ticket, Info, Mic2, Users, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -18,6 +17,8 @@ type Props = {
   params: { eventId: string }
 }
 
+// isPrismaDecimal check removed as it's not needed for SQLite (uses Float)
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const event = await getMusicEventById(params.eventId);
 
@@ -27,11 +28,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
+   const description = event.description || `Details for ${event.name}`;
+
+
   return {
     title: `${event.name} | NoRaveNoLife`,
-    description: event.description,
+    description: description,
   }
 }
+
 
 export default async function EventDetailPage({ params }: Props) {
   const event = await getMusicEventById(params.eventId);
@@ -40,7 +45,9 @@ export default async function EventDetailPage({ params }: Props) {
     notFound();
   }
 
-  // Date and time formatting is now handled by the FormattedEventTime component
+  // ticketPrice is already a number (Float) or null from Prisma with SQLite
+  const ticketPriceNumber = event.ticketPrice;
+
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -86,7 +93,8 @@ export default async function EventDetailPage({ params }: Props) {
                 <div className="mt-4">
                     <h3 className="text-lg font-semibold mb-2 text-primary flex items-center gap-2"><MapPin className="w-5 h-5" /> Location</h3>
                     {/* Ensure location is passed correctly */}
-                    {event.location && <EventMap location={event.location} venueName={event.venue} eventName={event.name} /> }
+                    {/* Prisma returns lat/lng directly on the event object */}
+                    <EventMap location={{ lat: event.lat, lng: event.lng }} venueName={event.venue} eventName={event.name} />
                 </div>
             </div>
 
@@ -109,22 +117,20 @@ export default async function EventDetailPage({ params }: Props) {
                <p>{event.venue}</p>
                <p className="text-sm text-muted-foreground">{/* Address could go here if separated from venueDetails */}</p>
                 {/* Link to open map in external app (optional) */}
-                {event.location && (
-                     <a
-                         href={`https://www.google.com/maps/search/?api=1&query=${event.location.lat},${event.location.lng}`}
-                         target="_blank"
-                         rel="noopener noreferrer"
-                         className="text-sm text-primary hover:underline mt-2 inline-block"
-                     >
-                         Open in Maps
-                     </a>
-                 )}
+                 <a
+                     href={`https://www.google.com/maps/search/?api=1&query=${event.lat},${event.lng}`}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="text-sm text-primary hover:underline mt-2 inline-block"
+                 >
+                     Open in Maps
+                 </a>
              </Card>
 
              <Card className="bg-secondary/50 border-primary/30 p-4">
                <h3 className="text-lg font-semibold mb-3 text-primary flex items-center gap-2"><Ticket className="w-5 h-5" /> Tickets</h3>
-               <p className="text-xl font-bold">{event.ticketPrice !== null ? `$${event.ticketPrice}` : 'Free Event'}</p>
-               {event.ticketPrice !== null && event.ticketUrl && (
+               <p className="text-xl font-bold">{ticketPriceNumber !== null ? `$${ticketPriceNumber.toFixed(2)}` : 'Free Event'}</p>
+               {ticketPriceNumber !== null && event.ticketUrl && (
                  <Button asChild className="w-full mt-3 bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity shadow-md">
                    <a href={event.ticketUrl} target="_blank" rel="noopener noreferrer">Buy Tickets</a>
                  </Button>
@@ -132,6 +138,7 @@ export default async function EventDetailPage({ params }: Props) {
              </Card>
 
              {/* Giveaway Section - Pass the full event object */}
+             {/* Pass the Prisma event object directly */}
              {event.giveawayActive && (
                <GiveawaySection event={event} />
              )}
@@ -141,4 +148,3 @@ export default async function EventDetailPage({ params }: Props) {
     </div>
   );
 }
-    

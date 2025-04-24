@@ -1,33 +1,32 @@
+
 'use client';
 
-import type { MusicEvent } from '@/services/event';
+import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
 import { useEffect, useState } from 'react';
-import { getMusicEvents } from '@/services/event'; // Keep for potential client-side updates/filtering later
+import { getMusicEvents } from '@/services/event'; // Use Prisma-based service
 import { EventCard } from './EventCard';
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface EventListProps {
-  initialEvents?: MusicEvent[]; // Accept pre-fetched events
+  initialEvents?: MusicEvent[]; // Accept pre-fetched Prisma-based events
 }
 
 export function EventList({ initialEvents }: EventListProps) {
   const [events, setEvents] = useState<MusicEvent[]>(initialEvents || []);
-  const [loading, setLoading] = useState(!initialEvents); // Only load if no initial events provided
+  const [loading, setLoading] = useState(!initialEvents);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Only fetch if initialEvents were not provided
     if (!initialEvents) {
       const fetchEvents = async () => {
         try {
           setLoading(true);
           setError(null);
-          // TODO: Implement actual location fetching later
+          // Fetch using Prisma service
           const fetchedEvents = await getMusicEvents();
-          // Sorting is now handled server-side or in getMusicEvents, but ensure it here if needed
-          // fetchedEvents.sort((a, b) => a.dateTime.toMillis() - b.dateTime.toMillis());
+          // Sorting is handled by getMusicEvents, no need to sort here unless logic changes
           setEvents(fetchedEvents);
         } catch (err: any) {
           console.error("Failed to fetch events:", err);
@@ -36,15 +35,13 @@ export function EventList({ initialEvents }: EventListProps) {
           setLoading(false);
         }
       };
-
       fetchEvents();
     } else {
-       // If initial events are provided, ensure they are sorted (if not already)
-       const sortedEvents = [...initialEvents].sort((a, b) => a.dateTime.toMillis() - b.dateTime.toMillis());
-       setEvents(sortedEvents);
-       setLoading(false); // Already loaded
+       // If initial events are provided, assume they are sorted from server
+       setEvents(initialEvents);
+       setLoading(false);
     }
-  }, [initialEvents]); // Re-run if initialEvents changes
+  }, [initialEvents]);
 
   if (loading) {
     return (
@@ -75,9 +72,9 @@ export function EventList({ initialEvents }: EventListProps) {
      )
   }
 
-  // Filter out past events before rendering the list using Timestamps
+  // Filter out past events using Date objects
   const now = new Date();
-  const upcomingEvents = events.filter(event => event.dateTime && event.dateTime.toDate() >= now);
+  const upcomingEvents = events.filter(event => event.dateTime && event.dateTime >= now);
 
 
   if (upcomingEvents.length === 0) {
@@ -95,9 +92,9 @@ export function EventList({ initialEvents }: EventListProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {upcomingEvents.map((event) => (
+        // Pass the Prisma event object directly
         <EventCard key={event.id} event={event} />
       ))}
     </div>
   );
 }
-    

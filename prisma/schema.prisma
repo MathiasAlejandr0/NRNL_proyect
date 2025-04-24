@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Models based on application interfaces and requirements
+
+model UserProfile {
+  id          String    @id @unique // Corresponds to Firebase Auth UID
+  email       String?   @unique
+  displayName String?
+  photoURL    String?
+  role        String    @default("attendee") // 'attendee' or 'producer'
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tickets     UserTicket[] // Relation to UserTicket
+  giveawayEntries GiveawayEntry[] // Relation to GiveawayEntry
+  giveawayWins GiveawayWin[] // Relation to GiveawayWin
+}
+
+model MusicEvent {
+  id              String    @id @default(cuid())
+  name            String
+  artist          String
+  artistBio       String?
+  venue           String
+  venueDetails    String?
+  lat             Float     // Latitude
+  lng             Float     // Longitude
+  dateTime        DateTime  // Event date and time
+  ticketPrice     Float?    // Use Float for SQLite compatibility with decimal values
+  ticketUrl       String?
+  description     String?
+  imageUrl        String
+  giveawayActive  Boolean   @default(false)
+  giveawayEndDate DateTime? // When the giveaway entry period ends
+  giveawayTickets Int?      // Number of tickets in the giveaway
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  giveawayEntries GiveawayEntry[] // Relation to GiveawayEntry
+  giveawayWins    GiveawayWin[] // Relation to GiveawayWin
+  tickets         UserTicket[] // Relation to UserTicket
+}
+
+model GiveawayEntry {
+  id        String   @id @default(cuid())
+  userId    String   // Foreign key to UserProfile
+  eventId   String   // Foreign key to MusicEvent
+  enteredAt DateTime @default(now())
+
+  user  UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event MusicEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId]) // Ensure a user can enter only once per event
+}
+
+model GiveawayWin {
+  id        String   @id @default(cuid())
+  userId    String   // Foreign key to UserProfile
+  eventId   String   // Foreign key to MusicEvent
+  eventName String   // Denormalized event name for easy lookup
+  wonAt     DateTime @default(now())
+
+  user  UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event MusicEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId]) // Ensure only one win record per user/event
+}
+
+
+model UserTicket {
+  id            String   @id @default(cuid())
+  userId        String   // Foreign key to UserProfile
+  eventId       String   // Foreign key to MusicEvent
+  eventName     String   // Denormalized event name
+  venue         String   // Denormalized venue name
+  eventDateTime DateTime // Denormalized event date/time
+  type          String   // 'purchased' or 'giveaway'
+  qrCodeData    String   @unique // Unique data for QR code generation/verification
+  acquiredAt    DateTime @default(now())
+
+  user  UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event MusicEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // Optional: Add index for faster querying by user
+  @@index([userId])
+}
