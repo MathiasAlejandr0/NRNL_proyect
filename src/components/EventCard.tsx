@@ -2,11 +2,11 @@
 import type { MusicEvent } from '@/services/event';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, CalendarDays, Ticket } from 'lucide-react'; // Removed Users import as it wasn't used
+import { MapPin, CalendarDays, Ticket } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FormattedEventTime } from './FormattedEventTime'; // Import the new component
+import { FormattedEventTime } from './FormattedEventTime'; // Use the client component
 
 interface EventCardProps {
   event: MusicEvent;
@@ -41,7 +41,7 @@ export function EventCard({ event }: EventCardProps) {
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-primary" />
-            {/* Use the new client component for formatting */}
+            {/* Use the client component for formatting Firestore Timestamp */}
             <FormattedEventTime dateTime={event.dateTime} />
           </div>
           <div className="flex items-center gap-2">
@@ -62,3 +62,4 @@ export function EventCard({ event }: EventCardProps) {
     </Card>
   );
 }
+    

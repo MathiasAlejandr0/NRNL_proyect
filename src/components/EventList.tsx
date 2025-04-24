@@ -26,12 +26,12 @@ export function EventList({ initialEvents }: EventListProps) {
           setError(null);
           // TODO: Implement actual location fetching later
           const fetchedEvents = await getMusicEvents();
-          // Sort events by date (soonest first)
-          fetchedEvents.sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+          // Sorting is now handled server-side or in getMusicEvents, but ensure it here if needed
+          // fetchedEvents.sort((a, b) => a.dateTime.toMillis() - b.dateTime.toMillis());
           setEvents(fetchedEvents);
-        } catch (err) {
+        } catch (err: any) {
           console.error("Failed to fetch events:", err);
-          setError("Could not load events. Please try again later.");
+          setError(err.message || "Could not load events. Please try again later.");
         } finally {
           setLoading(false);
         }
@@ -39,12 +39,12 @@ export function EventList({ initialEvents }: EventListProps) {
 
       fetchEvents();
     } else {
-       // If initial events are provided, ensure they are sorted
-       const sortedEvents = [...initialEvents].sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+       // If initial events are provided, ensure they are sorted (if not already)
+       const sortedEvents = [...initialEvents].sort((a, b) => a.dateTime.toMillis() - b.dateTime.toMillis());
        setEvents(sortedEvents);
        setLoading(false); // Already loaded
     }
-  }, [initialEvents]); // Re-run if initialEvents changes (though unlikely in this setup)
+  }, [initialEvents]); // Re-run if initialEvents changes
 
   if (loading) {
     return (
@@ -75,8 +75,9 @@ export function EventList({ initialEvents }: EventListProps) {
      )
   }
 
-  // Filter out past events before rendering the list
-  const upcomingEvents = events.filter(event => new Date(event.dateTime) >= new Date());
+  // Filter out past events before rendering the list using Timestamps
+  const now = new Date();
+  const upcomingEvents = events.filter(event => event.dateTime && event.dateTime.toDate() >= now);
 
 
   if (upcomingEvents.length === 0) {
@@ -99,3 +100,4 @@ export function EventList({ initialEvents }: EventListProps) {
     </div>
   );
 }
+    

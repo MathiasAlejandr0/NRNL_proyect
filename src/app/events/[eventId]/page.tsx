@@ -3,14 +3,15 @@ import { getMusicEventById } from '@/services/event';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { format } from 'date-fns';
+// Removed date-fns import here, formatting handled by FormattedEventTime
 import { MapPin, CalendarDays, Ticket, Info, Mic2, Users, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { GiveawaySection } from '@/components/GiveawaySection';
 import Link from 'next/link';
-import { EventMap } from '@/components/EventMap'; // Import the map component
+import { EventMap } from '@/components/EventMap';
+import { FormattedEventTime } from '@/components/FormattedEventTime'; // Import the time formatting component
 
 
 type Props = {
@@ -39,8 +40,7 @@ export default async function EventDetailPage({ params }: Props) {
     notFound();
   }
 
-  const formattedDate = format(new Date(event.dateTime), 'EEEE, MMMM d, yyyy');
-  const formattedTime = format(new Date(event.dateTime), 'h:mm a');
+  // Date and time formatting is now handled by the FormattedEventTime component
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -85,7 +85,8 @@ export default async function EventDetailPage({ params }: Props) {
                {/* Interactive Map Section */}
                 <div className="mt-4">
                     <h3 className="text-lg font-semibold mb-2 text-primary flex items-center gap-2"><MapPin className="w-5 h-5" /> Location</h3>
-                    <EventMap location={event.location} venueName={event.venue} eventName={event.name} />
+                    {/* Ensure location is passed correctly */}
+                    {event.location && <EventMap location={event.location} venueName={event.venue} eventName={event.name} /> }
                 </div>
             </div>
 
@@ -94,8 +95,13 @@ export default async function EventDetailPage({ params }: Props) {
           <div className="space-y-4">
              <Card className="bg-secondary/50 border-primary/30 p-4">
                <h3 className="text-lg font-semibold mb-3 text-primary flex items-center gap-2"><CalendarDays className="w-5 h-5" /> When</h3>
-               <p>{formattedDate}</p>
-               <p className="flex items-center gap-1"><Clock className="w-4 h-4" /> {formattedTime}</p>
+               {/* Use FormattedEventTime for date */}
+               <FormattedEventTime dateTime={event.dateTime} formatString="EEEE, MMMM d, yyyy" />
+               <p className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    {/* Use FormattedEventTime for time */}
+                    <FormattedEventTime dateTime={event.dateTime} formatString="h:mm a" />
+               </p>
              </Card>
 
              <Card className="bg-secondary/50 border-primary/30 p-4">
@@ -103,14 +109,16 @@ export default async function EventDetailPage({ params }: Props) {
                <p>{event.venue}</p>
                <p className="text-sm text-muted-foreground">{/* Address could go here if separated from venueDetails */}</p>
                 {/* Link to open map in external app (optional) */}
-                <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${event.location.lat},${event.location.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline mt-2 inline-block"
-                >
-                    Open in Maps
-                </a>
+                {event.location && (
+                     <a
+                         href={`https://www.google.com/maps/search/?api=1&query=${event.location.lat},${event.location.lng}`}
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         className="text-sm text-primary hover:underline mt-2 inline-block"
+                     >
+                         Open in Maps
+                     </a>
+                 )}
              </Card>
 
              <Card className="bg-secondary/50 border-primary/30 p-4">
@@ -123,7 +131,7 @@ export default async function EventDetailPage({ params }: Props) {
                )}
              </Card>
 
-             {/* Giveaway Section */}
+             {/* Giveaway Section - Pass the full event object */}
              {event.giveawayActive && (
                <GiveawaySection event={event} />
              )}
@@ -133,5 +141,4 @@ export default async function EventDetailPage({ params }: Props) {
     </div>
   );
 }
-
     

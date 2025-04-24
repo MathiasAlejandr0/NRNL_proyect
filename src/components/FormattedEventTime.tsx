@@ -1,11 +1,11 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import type { Timestamp } from 'firebase/firestore'; // Import Timestamp type
 
 interface FormattedEventTimeProps {
-    dateTime: string;
+    dateTime: Timestamp | string; // Accept Timestamp or ISO string
     formatString?: string; // Optional custom format
 }
 
@@ -15,23 +15,29 @@ export function FormattedEventTime({ dateTime, formatString = "eee, MMM d 'at' h
     useEffect(() => {
         // Ensure this runs only on the client after mounting
         try {
-            const date = new Date(dateTime);
+            let date: Date;
+            if (typeof dateTime === 'string') {
+                date = new Date(dateTime); // Handle ISO string input
+            } else if (dateTime && typeof dateTime.toDate === 'function') {
+                date = dateTime.toDate(); // Convert Firestore Timestamp to JS Date
+            } else {
+                 throw new Error("Invalid date/timestamp provided");
+            }
+
             // Check if date is valid before formatting
             if (!isNaN(date.getTime())) {
                  setFormattedDateTime(format(date, formatString));
             } else {
-                console.warn("Invalid date provided to FormattedEventTime:", dateTime);
-                setFormattedDateTime("Invalid date"); // Or handle appropriately
+                console.warn("Invalid date resulted from input:", dateTime);
+                setFormattedDateTime("Invalid date");
             }
-        } catch (error) {
+        } catch (error: any) {
              console.error("Error formatting date:", error);
-             setFormattedDateTime("Error formatting date");
+             setFormattedDateTime(`Error: ${error.message}`);
         }
 
     }, [dateTime, formatString]);
 
-    // Render null during SSR and initial client render before useEffect runs to avoid mismatch
-    // Render the formatted time once available client-side
-    // Added a fallback text for better UX while loading client-side
+    // Render a placeholder during SSR/initial render, then the formatted time
     return <>{formattedDateTime ?? <span className="opacity-70">Loading date...</span>}</>;
 }

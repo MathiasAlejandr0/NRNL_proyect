@@ -1,25 +1,24 @@
+
 import type { MusicEvent } from '@/services/event';
 import Link from 'next/link';
 import Image from 'next/image';
-import { format } from 'date-fns';
 import { CalendarDays, MapPin, Ticket } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { FormattedEventTime } from './FormattedEventTime'; // Import the client component
 
 interface FeaturedArtistCardProps {
   event: MusicEvent; // We use the event data to display artist and event info
 }
 
 export function FeaturedArtistCard({ event }: FeaturedArtistCardProps) {
-  const formattedDate = format(new Date(event.dateTime), 'eee, MMM d, yyyy');
-  const formattedTime = format(new Date(event.dateTime), 'h:mm a');
+  // Formatting moved to FormattedEventTime component
 
   return (
     <Card className="overflow-hidden border border-accent shadow-lg hover:shadow-accent/30 transition-shadow duration-300 bg-gradient-to-bl from-card via-card/90 to-accent/10">
       <div className="md:flex">
         <div className="md:w-1/3 relative">
-           {/* Use event image as artist image for now */}
           <Image
             src={event.imageUrl}
             alt={`Featured artist: ${event.artist}`}
@@ -40,13 +39,17 @@ export function FeaturedArtistCard({ event }: FeaturedArtistCardProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-2 flex-grow space-y-3">
-             <p className="text-sm text-muted-foreground italic">{event.artistBio.substring(0, 150)}{event.artistBio.length > 150 ? '...' : ''}</p>
+             {/* Display truncated artist bio */}
+             <p className="text-sm text-muted-foreground italic">
+               {event.artistBio ? `${event.artistBio.substring(0, 150)}${event.artistBio.length > 150 ? '...' : ''}` : 'No artist bio available.'}
+              </p>
              <div>
                 <h4 className="font-semibold text-primary mb-1">Next Show: {event.name}</h4>
                  <div className="space-y-1 text-sm text-muted-foreground">
                    <div className="flex items-center gap-2">
                      <CalendarDays className="w-4 h-4 text-primary/80" />
-                     <span>{formattedDate} at {formattedTime}</span>
+                     {/* Use FormattedEventTime for date and time */}
+                     <FormattedEventTime dateTime={event.dateTime} formatString="eee, MMM d, yyyy 'at' h:mm a" />
                    </div>
                    <div className="flex items-center gap-2">
                      <MapPin className="w-4 h-4 text-primary/80" />
@@ -71,3 +74,4 @@ export function FeaturedArtistCard({ event }: FeaturedArtistCardProps) {
     </Card>
   );
 }
+    

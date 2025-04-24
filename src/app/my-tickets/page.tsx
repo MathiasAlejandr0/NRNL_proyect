@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,37 +5,46 @@ import { getUserTickets } from '@/services/event';
 import type { UserTicket } from '@/services/event';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Ticket, QrCode, CalendarDays, Clock, MapPin, Gift, Info, Loader2 } from 'lucide-react';
+import { Ticket, QrCode, CalendarDays, Clock, MapPin, Gift, Info, Loader2, UserRoundX } from 'lucide-react'; // Added UserRoundX
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth'; // Import useAuth hook
 
 export default function MyTicketsPage() {
+  const { user, loading: authLoading } = useAuth(); // Get user and loading state from AuthContext
   const [tickets, setTickets] = useState<UserTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Mock user ID - replace with actual authentication later
-  const userId = 'user123';
-
   useEffect(() => {
-    const fetchTickets = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const userTickets = await getUserTickets(userId);
-        setTickets(userTickets);
-      } catch (err) {
-        console.error("Failed to fetch user tickets:", err);
-        setError("Could not load your tickets. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Only fetch tickets if auth has loaded and a user is logged in
+    if (!authLoading && user) {
+      const fetchTickets = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          const userTickets = await getUserTickets(user.uid); // Use actual user ID
+          setTickets(userTickets);
+        } catch (err) {
+          console.error("Failed to fetch user tickets:", err);
+          setError("Could not load your tickets. Please try again later.");
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    fetchTickets();
-  }, []); // Fetch tickets on component mount for the mock user
+      fetchTickets();
+    } else if (!authLoading && !user) {
+        // If auth loaded but no user, stop loading and show login prompt
+        setLoading(false);
+        setTickets([]); // Ensure tickets array is empty
+    }
+    // Wait for auth state to be determined before fetching tickets
+  }, [user, authLoading]); // Depend on user and authLoading state
+
+   const isLoading = loading || authLoading; // Combined loading state
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
@@ -45,10 +53,10 @@ export default function MyTicketsPage() {
         My Tickets
       </h1>
 
-      {loading && (
+      {isLoading && (
         <div className="flex justify-center items-center p-10">
           <Loader2 className="w-10 h-10 animate-spin text-primary" />
-          <p className="ml-3 text-muted-foreground">Loading your tickets...</p>
+          <p className="ml-3 text-muted-foreground">Loading...</p>
         </div>
       )}
 
@@ -60,7 +68,19 @@ export default function MyTicketsPage() {
         </Alert>
       )}
 
-      {!loading && !error && tickets.length === 0 && (
+      {!isLoading && !user && (
+         <Alert className="text-center border-dashed border-muted-foreground">
+           <UserRoundX className="h-4 w-4 inline-block mr-2" />
+           <AlertTitle>Please Login</AlertTitle>
+           <AlertDescription>You need to be logged in to view your tickets.</AlertDescription>
+            <Button asChild variant="link" className="mt-2 text-primary">
+                 <Link href="/login">Login / Sign Up</Link>
+             </Button>
+         </Alert>
+       )}
+
+
+      {!isLoading && user && tickets.length === 0 && !error && (
         <Alert className="text-center border-dashed border-muted-foreground">
           <Ticket className="h-4 w-4 inline-block mr-2" />
           <AlertTitle>No Tickets Yet!</AlertTitle>
@@ -71,7 +91,7 @@ export default function MyTicketsPage() {
         </Alert>
       )}
 
-      {!loading && !error && tickets.length > 0 && (
+      {!isLoading && user && tickets.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {tickets.map((ticket) => {
              const formattedDate = format(new Date(ticket.dateTime), 'eee, MMM d, yyyy');
@@ -120,5 +140,3 @@ export default function MyTicketsPage() {
     </div>
   );
 }
-
-    
