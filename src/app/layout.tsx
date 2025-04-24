@@ -1,7 +1,7 @@
 import type {Metadata} from 'next';
 // Correct the import path for Geist fonts
 import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono'; // Ensure this path exists after installing `geist`
+import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"; // Import Toaster
 import { cn } from '@/lib/utils';
@@ -18,11 +18,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark"> {/* Force dark mode */}
+    <html lang="en" className={cn("dark", GeistSans.variable, GeistMono.variable)}> {/* Force dark mode and apply fonts */}
       <body className={cn(
-        // Apply the font variables directly from the imported objects
-        GeistSans.variable,
-        GeistMono.variable, // Use the imported variable
+        // Apply the font variables directly from the imported objects - moved font variables to html tag
         "antialiased",
         "bg-gradient-to-br from-background to-background/90 min-h-screen"
         )}>
