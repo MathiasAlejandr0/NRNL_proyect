@@ -1,7 +1,7 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-// import { getFirestore } from 'firebase/firestore'; // Firestore no longer needed
+// Firestore no longer needed
 
 // Your web app's Firebase configuration for Authentication
 // Using environment variables

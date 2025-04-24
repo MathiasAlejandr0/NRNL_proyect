@@ -1,5 +1,5 @@
 
-import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
+import type { MusicEvent } from '@/services/event'; // Use mock-based type
 import Link from 'next/link';
 import Image from 'next/image';
 import { CalendarDays, MapPin, Ticket } from 'lucide-react';
@@ -9,12 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { FormattedEventTime } from './FormattedEventTime'; // Import the client component
 
 interface FeaturedArtistCardProps {
-  event: MusicEvent; // Use Prisma-generated type
+  event: MusicEvent; // Use mock-based type
 }
 
 export function FeaturedArtistCard({ event }: FeaturedArtistCardProps) {
 
-  // ticketPrice is already a number (Float) or null from Prisma
   const ticketPriceNumber = event.ticketPrice;
 
   return (
@@ -50,7 +49,7 @@ export function FeaturedArtistCard({ event }: FeaturedArtistCardProps) {
                  <div className="space-y-1 text-sm text-muted-foreground">
                    <div className="flex items-center gap-2">
                      <CalendarDays className="w-4 h-4 text-primary/80" />
-                     {/* Pass Prisma Date object */}
+                     {/* Pass Date object from mock data */}
                      <FormattedEventTime dateTime={event.dateTime} formatString="eee, MMM d, yyyy 'at' h:mm a" />
                    </div>
                    <div className="flex items-center gap-2">
@@ -58,7 +57,7 @@ export function FeaturedArtistCard({ event }: FeaturedArtistCardProps) {
                      <span className="truncate">{event.venue}</span>
                    </div>
                     {/* Use formatted ticket price */}
-                    {ticketPriceNumber !== null && (
+                    {(ticketPriceNumber !== null && ticketPriceNumber !== undefined) && (
                         <div className="flex items-center gap-2">
                             <Ticket className="w-4 h-4 text-primary/80" />
                             <span>Tickets: ${ticketPriceNumber.toFixed(2)}</span>

@@ -1,19 +1,19 @@
 
 'use client';
 
-import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
+import type { MusicEvent } from '@/services/event'; // Use mock-based type
 import { useState, useEffect } from 'react';
-import { enterGiveaway, hasUserEnteredGiveaway } from '@/services/event'; // Use Prisma-based services
+import { enterGiveaway, hasUserEnteredGiveaway } from '@/services/event'; // Use mock-based services
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gift, Clock, CheckCircle, AlertCircle, Loader2, UserRoundX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatDistanceToNowStrict, isBefore } from 'date-fns'; // Removed parseISO, Prisma gives Date
+import { formatDistanceToNowStrict, isBefore } from 'date-fns'; // Use date-fns for date comparison
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 
 interface GiveawaySectionProps {
-  event: MusicEvent; // Expect Prisma-generated type
+  event: MusicEvent; // Expect mock-based type
 }
 
 export function GiveawaySection({ event }: GiveawaySectionProps) {
@@ -29,7 +29,7 @@ export function GiveawaySection({ event }: GiveawaySectionProps) {
       const checkEntryStatus = async () => {
         try {
           setIsLoading(true);
-          // Use Prisma-based service
+          // Use mock-based service
           const entered = await hasUserEnteredGiveaway(user.uid, event.id);
           setIsEntered(entered);
         } catch (err) {
@@ -58,7 +58,7 @@ export function GiveawaySection({ event }: GiveawaySectionProps) {
     setIsSubmitting(true);
     setError(null);
     try {
-      // Use Prisma-based service
+      // Use mock-based service
       const success = await enterGiveaway(user.uid, event.id);
       if (success) {
         setIsEntered(true);
@@ -70,7 +70,7 @@ export function GiveawaySection({ event }: GiveawaySectionProps) {
         });
       } else {
          const now = new Date();
-         // Use Date object or null from Prisma directly
+         // Use Date object or null from mock data directly
          const endDate = event.giveawayEndDate;
          let reason = "Could not enter giveaway. It might be closed or you've already entered.";
          if (endDate && isBefore(endDate, now)) { // Check if end date is in the past
@@ -102,7 +102,7 @@ export function GiveawaySection({ event }: GiveawaySectionProps) {
     return null;
   }
 
-   // Use Date object or null from Prisma for giveawayEndDate
+   // Use Date object or null from mock data for giveawayEndDate
   const endDate = event.giveawayEndDate;
   const isGiveawayOpen = endDate ? isBefore(new Date(), endDate) : true; // Check if now is before end date
   const timeLeft = endDate && isGiveawayOpen ? formatDistanceToNowStrict(endDate, { addSuffix: true }) : null;

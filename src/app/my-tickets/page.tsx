@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getUserTickets } from '@/services/event'; // Use Prisma-based service
-import type { UserTicket } from '@/services/event'; // Use adapted Prisma-based type
+import { getUserTickets } from '@/services/event'; // Use mock-based service
+import type { UserTicket } from '@/services/event'; // Use mock-based type
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Ticket, QrCode, CalendarDays, Clock, MapPin, Gift, Info, Loader2, UserRoundX } from 'lucide-react';
@@ -25,7 +25,8 @@ export default function MyTicketsPage() {
         try {
           setLoading(true);
           setError(null);
-          const userTickets = await getUserTickets(user.uid); // Use actual user ID
+          // Use mock service
+          const userTickets = await getUserTickets(user.uid);
           setTickets(userTickets);
         } catch (err) {
           console.error("Failed to fetch user tickets:", err);
@@ -92,11 +93,11 @@ export default function MyTicketsPage() {
       {!isLoading && user && tickets.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {tickets.map((ticket) => {
-             // Use ticket.dateTime which is already a Date object from Prisma
+             // Use ticket.dateTime which is a Date object from mock data
              const formattedDate = format(ticket.dateTime, 'eee, MMM d, yyyy');
              const formattedTime = format(ticket.dateTime, 'h:mm a');
              return (
-                // Use ticket.ticketId (which maps to Prisma's id)
+                // Use ticket.ticketId
                 <Card key={ticket.ticketId} className="overflow-hidden border border-border shadow-lg bg-gradient-to-br from-card via-card/95 to-card/90">
                   <CardHeader>
                     <div className="flex justify-between items-start gap-2">

@@ -1,17 +1,25 @@
 
-import { prisma } from '@/lib/prisma'; // Use Prisma client
-import type { UserProfile as PrismaUserProfile } from '@prisma/client';
 import type { User as FirebaseUser } from 'firebase/auth'; // Keep Firebase Auth type
+import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs if needed
 
 /**
- * Represents the user profile application interface. Directly uses the Prisma model structure.
+ * Represents the user profile application interface.
  */
-export type UserProfile = PrismaUserProfile;
+export interface UserProfile {
+  id: string; // Corresponds to Firebase UID
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  role: 'attendee' | 'producer'; // User roles
+  createdAt: Date;
+  updatedAt: Date;
+}
 
+// In-memory store for mock user profiles
+let mockUserProfiles: UserProfile[] = [];
 
 /**
- * Creates or updates a user profile in Prisma when a user signs up or logs in.
- * Uses `upsert` for atomic create/update operation.
+ * Creates or updates a user profile in the mock data store when a user signs up or logs in.
  *
  * @param user - The Firebase Auth User object.
  */
@@ -19,75 +27,87 @@ export const createUserProfileDocument = async (user: FirebaseUser): Promise<voi
   const { uid, email, displayName, photoURL } = user;
 
   try {
-    await prisma.userProfile.upsert({
-      where: { id: uid }, // Find user by Firebase UID
-      update: {
-        // Fields to update if the user exists
+    const existingProfileIndex = mockUserProfiles.findIndex(profile => profile.id === uid);
+    const now = new Date();
+
+    if (existingProfileIndex !== -1) {
+      // Update existing profile
+      mockUserProfiles[existingProfileIndex] = {
+        ...mockUserProfiles[existingProfileIndex],
         email: email,
         displayName: displayName,
         photoURL: photoURL,
-        // updatedAt is handled automatically by Prisma
-      },
-      create: {
-        // Fields to set if the user is new
-        id: uid, // Use Firebase UID as the primary key
+        updatedAt: now,
+      };
+      console.log('Mock user profile updated for:', uid);
+    } else {
+      // Create new profile
+      const newUserProfile: UserProfile = {
+        id: uid,
         email: email,
         displayName: displayName,
         photoURL: photoURL,
         role: 'attendee', // Default role
-        // createdAt and updatedAt are handled automatically by Prisma
-      },
-    });
-    console.log('User profile created or updated in Prisma for:', uid);
+        createdAt: now,
+        updatedAt: now,
+      };
+      mockUserProfiles.push(newUserProfile);
+      console.log('Mock user profile created for:', uid);
+    }
   } catch (error) {
-    console.error('Error creating/updating user profile in Prisma:', error);
-    // Handle the error appropriately
+    console.error('Error creating/updating mock user profile:', error);
+    // Handle the error appropriately in a real application
   }
 };
 
 
 /**
- * Retrieves a user's profile from Prisma.
+ * Retrieves a user's profile from the mock data store.
  *
  * @param uid - The user's unique identifier (Firebase Auth UID).
- * @returns A promise that resolves to the UserProfile object (Prisma type) or null if not found.
+ * @returns A promise that resolves to the UserProfile object or null if not found.
  */
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
     try {
-        const userProfile = await prisma.userProfile.findUnique({
-            where: { id: uid },
-        });
+        const userProfile = mockUserProfiles.find(profile => profile.id === uid);
 
         if (userProfile) {
-            // Return Prisma model directly
-            return userProfile;
+            return { ...userProfile }; // Return a copy
         } else {
-            console.log('No user profile found for UID:', uid);
+            console.log('No mock user profile found for UID:', uid);
             return null;
         }
     } catch (error) {
-        console.error('Error fetching user profile from Prisma:', error);
-        throw error; // Re-throw to handle in the calling component
+        console.error('Error fetching mock user profile:', error);
+        throw error; // Re-throw for handling in the calling component
     }
 };
 
 /**
- * Updates the role of a user.
+ * Updates the role of a user in the mock data store.
  *
  * @param uid The user's UID.
  * @param newRole The new role to assign.
  */
 export const updateUserRole = async (uid: string, newRole: 'attendee' | 'producer'): Promise<UserProfile | null> => {
     try {
-        const updatedUser = await prisma.userProfile.update({
-            where: { id: uid },
-            data: { role: newRole },
-        });
-         // Return updated Prisma model directly
-         return updatedUser;
+        const profileIndex = mockUserProfiles.findIndex(profile => profile.id === uid);
+        if (profileIndex !== -1) {
+             mockUserProfiles[profileIndex].role = newRole;
+             mockUserProfiles[profileIndex].updatedAt = new Date();
+             console.log(`Mock user role updated for ${uid} to ${newRole}`);
+             return { ...mockUserProfiles[profileIndex] }; // Return a copy
+        } else {
+             console.error(`Mock user ${uid} not found for role update.`);
+             return null;
+        }
     } catch (error) {
-        console.error(`Error updating role for user ${uid}:`, error);
-         // Handle specific errors like P2025 (Record not found) if necessary
+        console.error(`Error updating mock role for user ${uid}:`, error);
         return null;
     }
 };
+
+// Example function to get all mock users (for debugging/testing)
+export const getAllMockUserProfiles = async (): Promise<UserProfile[]> => {
+    return [...mockUserProfiles]; // Return a copy
+}

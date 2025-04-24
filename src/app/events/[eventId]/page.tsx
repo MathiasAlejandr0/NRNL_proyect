@@ -1,5 +1,6 @@
 
-import { getMusicEventById } from '@/services/event';
+import { getMusicEventById } from '@/services/event'; // Use mock-based service
+import type { MusicEvent } from '@/services/event'; // Use mock-based type
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
@@ -17,10 +18,8 @@ type Props = {
   params: { eventId: string }
 }
 
-// isPrismaDecimal check removed as it's not needed for SQLite (uses Float)
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const event = await getMusicEventById(params.eventId);
+  const event = await getMusicEventById(params.eventId); // Use mock service
 
   if (!event) {
     return {
@@ -39,13 +38,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 
 export default async function EventDetailPage({ params }: Props) {
-  const event = await getMusicEventById(params.eventId);
+  const event = await getMusicEventById(params.eventId); // Use mock service
 
   if (!event) {
     notFound();
   }
 
-  // ticketPrice is already a number (Float) or null from Prisma with SQLite
   const ticketPriceNumber = event.ticketPrice;
 
 
@@ -92,8 +90,7 @@ export default async function EventDetailPage({ params }: Props) {
                {/* Interactive Map Section */}
                 <div className="mt-4">
                     <h3 className="text-lg font-semibold mb-2 text-primary flex items-center gap-2"><MapPin className="w-5 h-5" /> Location</h3>
-                    {/* Ensure location is passed correctly */}
-                    {/* Prisma returns lat/lng directly on the event object */}
+                    {/* Pass lat/lng from mock event */}
                     <EventMap location={{ lat: event.lat, lng: event.lng }} venueName={event.venue} eventName={event.name} />
                 </div>
             </div>
@@ -138,9 +135,8 @@ export default async function EventDetailPage({ params }: Props) {
              </Card>
 
              {/* Giveaway Section - Pass the full event object */}
-             {/* Pass the Prisma event object directly */}
              {event.giveawayActive && (
-               <GiveawaySection event={event} />
+               <GiveawaySection event={event} /> // Pass the mock event object
              )}
           </div>
         </CardContent>

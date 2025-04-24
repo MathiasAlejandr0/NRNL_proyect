@@ -1,8 +1,8 @@
 
 import { EventList } from '@/components/EventList';
 import { FeaturedArtistCard } from '@/components/FeaturedArtistCard';
-import { getMusicEvents } from '@/services/event'; // Use Prisma-based service
-import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
+import { getMusicEvents } from '@/services/event'; // Use mock-based service
+import type { MusicEvent } from '@/services/event'; // Use mock-based type
 import { Music, Star, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -12,12 +12,12 @@ export default async function HomePage() {
   let fetchError: string | null = null;
 
   try {
-    // Fetch events using Prisma service (returns Prisma MusicEvent type)
-    console.log('Fetching events from Prisma...');
+    // Fetch events using mock service
+    console.log('Fetching events from mock service...');
     allEvents = await getMusicEvents();
     console.log(`Fetched ${allEvents.length} total events:`, allEvents);
 
-    // Filter upcoming events and sort (Prisma returns Date objects)
+    // Filter upcoming events and sort (mock service returns Date objects)
     const now = new Date();
     const upcomingEvents = allEvents
       .filter(event => {
@@ -25,7 +25,7 @@ export default async function HomePage() {
           // console.log(`Event: ${event.name}, DateTime: ${event.dateTime}, Now: ${now}, IsUpcoming: ${isUpcoming}`); // Detailed log per event
           return isUpcoming;
       })
-      // Sorting is already done by getMusicEvents, but double-check if needed
+      // Sorting should be handled by getMusicEvents, but can double-check here if needed
       .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
 
     console.log(`Found ${upcomingEvents.length} upcoming events:`, upcomingEvents);
@@ -60,7 +60,7 @@ export default async function HomePage() {
             <h2 className="text-3xl font-bold text-center flex items-center justify-center gap-2 border-b pb-2 border-primary/30">
                <Star className="w-7 h-7 text-accent" /> Artist of the Week
             </h2>
-           {/* Pass the Prisma event object directly */}
+           {/* Pass the mock event object directly */}
            <FeaturedArtistCard event={featuredEvent} />
          </section>
        )}
@@ -84,7 +84,7 @@ export default async function HomePage() {
                <AlertDescription>{fetchError}</AlertDescription>
              </Alert>
           ) : (
-            /* Pass fetched Prisma events (or empty array on error) to EventList */
+            /* Pass fetched mock events (or empty array on error) to EventList */
             <EventList initialEvents={allEvents} />
           )}
        </section>

@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { checkGiveawayWins, getMusicEventById } from '@/services/event'; // Use Prisma-based services
-import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
+import { checkGiveawayWins, getMusicEventById } from '@/services/event'; // Use mock-based services
+import type { MusicEvent } from '@/services/event'; // Use mock-based type
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { BellRing, Gift, Ticket, Info, Loader2, UserRoundX } from 'lucide-react';
@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function NotificationsPage() {
   const { user, loading: authLoading } = useAuth();
-  const [wins, setWins] = useState<MusicEvent[]>([]); // Store full MusicEvent objects (Prisma type)
+  const [wins, setWins] = useState<MusicEvent[]>([]); // Store full MusicEvent objects
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,21 +23,22 @@ export default function NotificationsPage() {
           try {
             setLoading(true);
             setError(null);
-            const wonEventIds = await checkGiveawayWins(user.uid); // Use actual user ID
+            // Use mock service
+            const wonEventIds = await checkGiveawayWins(user.uid);
             const wonEventsDetails: MusicEvent[] = [];
 
-            // Fetch details for each won event ID
+            // Fetch details for each won event ID using mock service
             for (const eventId of wonEventIds) {
-              const eventDetails = await getMusicEventById(eventId); // Fetch full event details (Prisma type)
+              const eventDetails = await getMusicEventById(eventId);
               if (eventDetails) {
                 wonEventsDetails.push(eventDetails);
               } else {
-                  console.warn(`Could not fetch details for won event ID: ${eventId}`);
+                  console.warn(`Could not fetch mock details for won event ID: ${eventId}`);
               }
             }
             setWins(wonEventsDetails);
           } catch (err) {
-            console.error("Failed to fetch giveaway wins:", err);
+            console.error("Failed to fetch mock giveaway wins:", err);
             setError("Could not load notifications. Please try again later.");
           } finally {
             setLoading(false);
@@ -97,7 +98,7 @@ export default function NotificationsPage() {
       {!isLoading && user && wins.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-green-400">Giveaway Wins!</h2>
-          {/* Render based on the fetched MusicEvent details */}
+          {/* Render based on the fetched mock MusicEvent details */}
           {wins.map((event) => (
             <Card key={event.id} className="bg-gradient-to-r from-green-900/30 via-card to-card border-green-500 shadow-lg">
               <CardHeader>

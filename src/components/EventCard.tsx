@@ -1,5 +1,5 @@
 
-import type { MusicEvent } from '@prisma/client'; // Use Prisma-generated type
+import type { MusicEvent } from '@/services/event'; // Use mock-based type
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, CalendarDays, Ticket } from 'lucide-react';
@@ -9,12 +9,11 @@ import { Button } from '@/components/ui/button';
 import { FormattedEventTime } from './FormattedEventTime'; // Use the client component
 
 interface EventCardProps {
-  event: MusicEvent; // Use Prisma-generated type
+  event: MusicEvent; // Use mock-based type
 }
 
 export function EventCard({ event }: EventCardProps) {
 
-   // ticketPrice is already a number (Float) or null from Prisma
    const ticketPriceNumber = event.ticketPrice;
 
   return (
@@ -46,7 +45,7 @@ export function EventCard({ event }: EventCardProps) {
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-primary" />
-            {/* Pass the Prisma Date object */}
+            {/* Pass the Date object from mock data */}
             <FormattedEventTime dateTime={event.dateTime} />
           </div>
           <div className="flex items-center gap-2">
