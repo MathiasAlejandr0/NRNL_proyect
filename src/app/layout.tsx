@@ -21,12 +21,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn("dark", GeistSans.variable, GeistMono.variable)} suppressHydrationWarning>
-       <head /> {/* The <head /> tag is automatically managed by Next.js */}
+      <head /> {/* The <head /> tag is automatically managed by Next.js */}
       <body className={cn(
         "antialiased",
         "bg-gradient-to-br from-background to-background/90 min-h-screen flex flex-col" // Use flex-col
         )}>
-
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container flex h-14 items-center justify-between">
                  <Link href="/" className="flex items-center space-x-2 text-primary font-bold text-lg">
@@ -55,5 +54,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    
