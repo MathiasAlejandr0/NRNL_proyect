@@ -1,20 +1,18 @@
+
 import type { MusicEvent } from '@/services/event';
 import Link from 'next/link';
 import Image from 'next/image';
-import { format } from 'date-fns';
-import { MapPin, CalendarDays, Ticket, Users } from 'lucide-react';
+import { MapPin, CalendarDays, Ticket } from 'lucide-react'; // Removed Users import as it wasn't used
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { FormattedEventTime } from './FormattedEventTime'; // Import the new component
 
 interface EventCardProps {
   event: MusicEvent;
 }
 
 export function EventCard({ event }: EventCardProps) {
-  const formattedDate = format(new Date(event.dateTime), 'eee, MMM d');
-  const formattedTime = format(new Date(event.dateTime), 'h:mm a');
 
   return (
     <Card className="overflow-hidden group border border-border hover:border-primary transition-colors duration-300 shadow-lg hover:shadow-primary/20 flex flex-col h-full bg-gradient-to-br from-card via-card/95 to-card/90">
@@ -43,7 +41,8 @@ export function EventCard({ event }: EventCardProps) {
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-primary" />
-            <span>{formattedDate} at {formattedTime}</span>
+            {/* Use the new client component for formatting */}
+            <FormattedEventTime dateTime={event.dateTime} />
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-primary" />
