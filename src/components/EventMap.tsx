@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css'; // Import Leaflet CSS
 
 // Import images directly. Ensure these are available.
+// Note: Using .src is important for Next.js image imports
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
@@ -30,6 +31,7 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
         const L = LRef.current; // Use the stored Leaflet instance
 
         // Create a reusable icon instance with explicit paths and options
+        // This is the crucial fix for the iconUrl error
         const defaultIcon = L.icon({
             iconUrl: iconUrl.src,
             iconRetinaUrl: iconRetinaUrl.src,
@@ -110,4 +112,3 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
     </div>
   );
 }
-
