@@ -27,45 +27,66 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
     // Dynamically import Leaflet only on the client-side
     import('leaflet').then(leaflet => {
       LRef.current = leaflet; // Store Leaflet instance
+      console.log('Leaflet loaded:', LRef.current);
 
       if (mapContainerRef.current && LRef.current) {
         const L = LRef.current; // Use the stored Leaflet instance
 
-        // --- Explicitly configure the default icon paths AFTER loading Leaflet ---
+        // --- Explicitly configure the default icon paths BEFORE any map/marker creation ---
         // This helps prevent issues with bundlers/frameworks like Next.js
-        delete (L.Icon.Default.prototype as any)._getIconUrl; // Remove previous potentially broken getter
+        // Delete the potentially problematic default getter first
+        if ((L.Icon.Default.prototype as any)._getIconUrl) {
+           delete (L.Icon.Default.prototype as any)._getIconUrl;
+           console.log('Deleted default _getIconUrl');
+        }
 
         L.Icon.Default.mergeOptions({
           iconRetinaUrl: iconRetinaUrl.src,
           iconUrl: iconUrl.src,
           shadowUrl: shadowUrl.src,
+           // Set default icon properties (important for consistency)
+           iconSize: [25, 41],
+           iconAnchor: [12, 41],
+           popupAnchor: [1, -34],
+           tooltipAnchor: [16, -28],
+           shadowSize: [41, 41]
         });
-         // --- Define the custom icon using explicit paths and options ---
-        const defaultIcon = L.icon({
-            iconUrl: iconUrl.src,
-            iconRetinaUrl: iconRetinaUrl.src,
-            shadowUrl: shadowUrl.src,
-            iconSize: [25, 41], // Default size
-            iconAnchor: [12, 41], // Default anchor
-            popupAnchor: [1, -34], // Default popup anchor
-            shadowSize: [41, 41] // Default shadow size
-        });
+        console.log('Leaflet default icon options merged:', L.Icon.Default.prototype.options);
+
+        // --- Define the default icon instance to be used ---
+        // This ensures we use the merged options.
+        const defaultIcon = L.icon({ ...L.Icon.Default.prototype.options });
+        console.log('Created defaultIcon instance:', defaultIcon.options);
 
 
         // Initialize map only once or if it doesn't exist
-        if (!mapRef.current) {
-            mapRef.current = L.map(mapContainerRef.current).setView([location.lat, location.lng], 15); // Set initial view and zoom
+        if (!mapRef.current && mapContainerRef.current.clientHeight > 0) { // Check if container has height
+            console.log('Initializing map...');
+            mapRef.current = L.map(mapContainerRef.current, {
+                // Optional: Add preferCanvas: true if performance is an issue with many markers
+                preferCanvas: true
+            }).setView([location.lat, location.lng], 15); // Set initial view and zoom
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+              // Optional: Add errorTileUrl for debugging tile loading
+              // errorTileUrl: 'path/to/your/error/tile.png'
             }).addTo(mapRef.current);
 
-            // Create marker using the explicitly defined custom icon instance
+            // Add error handling for tile layer
+             mapRef.current.on('tileerror', function(error) {
+                console.error('Tile loading error:', error);
+             });
+
+            // Create marker using the explicitly defined default icon instance
+            console.log('Adding marker with defaultIcon...');
             const marker = L.marker([location.lat, location.lng], { icon: defaultIcon }).addTo(mapRef.current);
             marker.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup(); // Add popup to marker
+            console.log('Map initialized and marker added.');
 
-        } else {
-             // If map exists, just update view and marker position/popup
+        } else if (mapRef.current) {
+             // If map exists, update view and marker
+             console.log('Updating existing map view and marker...');
              mapRef.current.setView([location.lat, location.lng], 15);
 
              let markerExists = false;
@@ -74,24 +95,31 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
                  if (layer instanceof L.Marker) {
                     markerExists = true;
                     layer.setLatLng([location.lat, location.lng]);
-                    // --- Ensure marker uses the correctly configured icon on update ---
-                    layer.setIcon(defaultIcon);
+                    layer.setIcon(defaultIcon); // Ensure correct icon on update
                     layer.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup();
+                    console.log('Existing marker updated.');
                  }
              });
-             // If no marker exists for some reason (e.g., removed), add one
+             // If no marker exists (e.g., removed previously), add one
              if (!markerExists) {
-                 // Use the explicitly defined custom icon instance
+                 console.log('No existing marker found, adding new one...');
                  const marker = L.marker([location.lat, location.lng], { icon: defaultIcon }).addTo(mapRef.current);
                  marker.bindPopup(`<b>${eventName}</b><br>${venueName}`).openPopup();
              }
+             // Invalidate map size after potential container resizes or updates
+             mapRef.current.invalidateSize();
+             console.log('Map size invalidated.');
+        } else {
+            console.warn('Map container not ready or has no height.');
         }
+      } else {
+        console.error('Map container ref or Leaflet instance not available.');
       }
 
     }).catch(error => {
-        console.error("Failed to load Leaflet", error);
+        console.error("Failed to load Leaflet dynamically", error);
         if (mapContainerRef.current) {
-            mapContainerRef.current.innerHTML = '<p class="text-center text-destructive">Error loading map.</p>';
+            mapContainerRef.current.innerHTML = '<p class="text-center text-destructive p-4">Error loading map component.</p>';
         }
     });
 
@@ -99,26 +127,37 @@ export function EventMap({ location, venueName, eventName }: EventMapProps) {
     // Cleanup function to remove map on component unmount
     return () => {
       if (mapRef.current) {
+        console.log('Removing map instance.');
         mapRef.current.remove();
         mapRef.current = null; // Clear reference
       }
     };
-  }, [location, venueName, eventName]); // Re-run effect if location, venue, or event name changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.lat, location.lng, venueName, eventName]); // Dependencies explicitly listed
 
   return (
     <div
       ref={mapContainerRef}
-      className="h-64 md:h-80 w-full rounded-lg border border-border shadow-inner bg-muted overflow-hidden" // Style the map container, add overflow hidden
+      className="h-64 md:h-80 w-full rounded-lg border border-border shadow-inner bg-muted overflow-hidden relative" // Style the map container, add overflow hidden
       aria-label={`Map showing location for ${eventName} at ${venueName}`}
+      style={{ minHeight: '200px' }} // Ensure minimum height
     >
        {/* Map will be rendered here by Leaflet */}
-       <span className="sr-only">Interactive map showing event location. Map loading...</span>
-       {/* Basic loading state */}
-        <div className="flex items-center justify-center h-full text-muted-foreground leaflet-loading-placeholder">Loading map...</div>
+        {/* Improved Loading/Error State */}
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-muted/50 leaflet-loading-placeholder z-0">
+            Loading map...
+        </div>
         <style jsx>{`
-            /* Hide placeholder once Leaflet map container is ready */
-            .leaflet-container ~ .leaflet-loading-placeholder {
+            /* Hide placeholder once Leaflet map pane is ready */
+            .leaflet-pane {
+                z-index: 1; /* Ensure map pane is above placeholder */
+            }
+            .leaflet-pane ~ .leaflet-loading-placeholder {
                 display: none;
+            }
+             /* Ensure Leaflet container takes up space */
+            .leaflet-container {
+                 background-color: hsl(var(--muted)); /* Match background */
             }
         `}</style>
     </div>
