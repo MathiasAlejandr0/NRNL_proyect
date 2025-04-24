@@ -1,3 +1,4 @@
+
 import { getMusicEventById } from '@/services/event';
 import type { Metadata } from 'next';
 import Image from 'next/image';
@@ -9,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { GiveawaySection } from '@/components/GiveawaySection';
 import Link from 'next/link';
+import { EventMap } from '@/components/EventMap'; // Import the map component
 
 
 type Props = {
@@ -80,6 +82,11 @@ export default async function EventDetailPage({ params }: Props) {
             <div>
                <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5 text-primary" /> Venue Info</h3>
                <p className="text-muted-foreground leading-relaxed">{event.venueDetails}</p>
+               {/* Interactive Map Section */}
+                <div className="mt-4">
+                    <h3 className="text-lg font-semibold mb-2 text-primary flex items-center gap-2"><MapPin className="w-5 h-5" /> Location</h3>
+                    <EventMap location={event.location} venueName={event.venue} eventName={event.name} />
+                </div>
             </div>
 
           </div>
@@ -94,8 +101,16 @@ export default async function EventDetailPage({ params }: Props) {
              <Card className="bg-secondary/50 border-primary/30 p-4">
                <h3 className="text-lg font-semibold mb-3 text-primary flex items-center gap-2"><MapPin className="w-5 h-5" /> Where</h3>
                <p>{event.venue}</p>
-               {/* Add Map link later if needed */}
-               <p className="text-sm text-muted-foreground">{/* Address could go here if separated */}</p>
+               <p className="text-sm text-muted-foreground">{/* Address could go here if separated from venueDetails */}</p>
+                {/* Link to open map in external app (optional) */}
+                <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${event.location.lat},${event.location.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline mt-2 inline-block"
+                >
+                    Open in Maps
+                </a>
              </Card>
 
              <Card className="bg-secondary/50 border-primary/30 p-4">
@@ -118,3 +133,5 @@ export default async function EventDetailPage({ params }: Props) {
     </div>
   );
 }
+
+    

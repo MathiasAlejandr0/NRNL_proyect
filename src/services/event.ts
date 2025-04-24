@@ -1,3 +1,4 @@
+
 /**
  * Represents a geographical location with latitude and longitude coordinates.
  */
@@ -78,6 +79,27 @@ export interface MusicEvent {
   giveawayTickets?: number;
 }
 
+/**
+ * Represents a ticket held by a user.
+ */
+export interface UserTicket {
+  /** Unique identifier for this specific ticket instance */
+  ticketId: string;
+  /** ID of the event this ticket is for */
+  eventId: string;
+  /** Name of the event */
+  eventName: string;
+   /** Venue of the event */
+  venue: string;
+   /** Date and time of the event */
+  dateTime: string;
+  /** Type of ticket (e.g., purchased, giveaway) */
+  type: 'purchased' | 'giveaway';
+  /** Placeholder for QR code data or URL */
+  qrCodeData: string;
+}
+
+
 // Mock data store
 const mockEvents: MusicEvent[] = [
   {
@@ -147,7 +169,15 @@ const mockEvents: MusicEvent[] = [
 ];
 
 // Mock user giveaway entries (replace with actual user state/DB later)
-const userGiveawayEntries = new Set<string>(); // Stores event IDs the user entered
+// Stores entry keys like 'userId-eventId'
+const userGiveawayEntries = new Set<string>();
+// Mock user giveaway wins (replace with actual user state/DB later)
+// Stores win keys like 'userId-eventId' -> could hold ticketId if needed
+const userGiveawayWins = new Set<string>();
+// Mock purchased tickets (replace with actual user state/DB later)
+// Stores purchase keys like 'userId-eventId' -> could hold ticketId if needed
+const userPurchasedTickets = new Set<string>();
+
 
 /**
  * Asynchronously retrieves music events, optionally filtering by location.
@@ -212,6 +242,14 @@ export async function enterGiveaway(userId: string, eventId: string): Promise<bo
     // Simulate successful entry
     userGiveawayEntries.add(entryKey);
     console.log(`User ${userId} successfully entered giveaway for ${eventId}`);
+
+     // Mock win determination (for testing My Tickets) - 30% chance
+     if (Math.random() < 0.3) {
+       userGiveawayWins.add(entryKey);
+       console.log(`User ${userId} has also been marked as a winner for ${eventId} (for testing).`);
+     }
+
+
     return true;
 }
 
@@ -233,23 +271,105 @@ export async function hasUserEnteredGiveaway(userId: string, eventId: string): P
 /**
  * Simulates checking for giveaway wins for a user.
  * In a real app, this would check a notifications or wins table.
+ * This is primarily for the notifications page.
  *
  * @param userId The ID of the user.
  * @returns A promise that resolves to an array of event IDs the user has won (mock implementation).
  */
 export async function checkGiveawayWins(userId: string): Promise<string[]> {
-    // TODO: Implement actual win checking logic.
+    // TODO: Implement actual win checking logic from a reliable source.
     await new Promise(resolve => setTimeout(resolve, 600)); // Simulate network delay
 
-    // Mock logic: Randomly decide if the user won the first giveaway they entered (if any)
-    const entries = Array.from(userGiveawayEntries)
+    // Return event IDs based on the mock win set
+    const wonEventIds = Array.from(userGiveawayWins)
                         .filter(key => key.startsWith(`${userId}-`))
                         .map(key => key.split('-')[1]);
 
-    if (entries.length > 0 && Math.random() > 0.7) { // 30% chance to "win" the first entered event
-       console.log(`User ${userId} "won" giveaway for event ${entries[0]}`);
-       return [entries[0]];
+    console.log(`User ${userId} found wins for events:`, wonEventIds);
+    return wonEventIds;
+}
+
+/**
+ * Mock function to simulate purchasing a ticket.
+ * In a real app, this would involve payment processing and ticket generation.
+ *
+ * @param userId The ID of the user purchasing the ticket.
+ * @param eventId The ID of the event.
+ * @returns A promise that resolves to true if the "purchase" was successful.
+ */
+export async function purchaseTicket(userId: string, eventId: string): Promise<boolean> {
+    await new Promise(resolve => setTimeout(resolve, 700)); // Simulate payment processing etc.
+    const event = await getMusicEventById(eventId);
+    if (!event || event.ticketPrice === null) {
+        console.error(`Cannot purchase ticket for free or non-existent event ${eventId}`);
+        return false;
     }
 
-    return []; // No wins found
+    const purchaseKey = `${userId}-${eventId}`;
+    // Allow multiple purchases in this mock for simplicity
+    userPurchasedTickets.add(purchaseKey);
+    console.log(`User ${userId} "purchased" a ticket for event ${eventId}`);
+    return true;
 }
+
+
+/**
+ * Retrieves all tickets (purchased and won) for a specific user.
+ * In a real app, this would query multiple data sources or a dedicated tickets table.
+ *
+ * @param userId The ID of the user.
+ * @returns A promise that resolves to an array of UserTicket objects.
+ */
+export async function getUserTickets(userId: string): Promise<UserTicket[]> {
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate database query
+
+    const tickets: UserTicket[] = [];
+    let ticketCounter = 0;
+
+    // Get won tickets
+    for (const key of userGiveawayWins) {
+        if (key.startsWith(`${userId}-`)) {
+            const eventId = key.split('-')[1];
+            const event = await getMusicEventById(eventId); // Reuse existing function
+            if (event) {
+                tickets.push({
+                    ticketId: `TKT-${userId}-${++ticketCounter}`,
+                    eventId: event.id,
+                    eventName: event.name,
+                    venue: event.venue,
+                    dateTime: event.dateTime,
+                    type: 'giveaway',
+                    qrCodeData: `GIVEAWAY-${userId}-${event.id}-${ticketCounter}` // Mock QR data
+                });
+            }
+        }
+    }
+
+     // Get purchased tickets (allow multiple for same event in mock)
+    for (const key of userPurchasedTickets) {
+       if (key.startsWith(`${userId}-`)) {
+           const eventId = key.split('-')[1];
+           const event = await getMusicEventById(eventId);
+           if (event) {
+               tickets.push({
+                   ticketId: `TKT-${userId}-${++ticketCounter}`,
+                   eventId: event.id,
+                   eventName: event.name,
+                   venue: event.venue,
+                   dateTime: event.dateTime,
+                   type: 'purchased',
+                   qrCodeData: `PURCHASE-${userId}-${event.id}-${ticketCounter}` // Mock QR data
+               });
+           }
+       }
+   }
+
+
+    // Sort tickets by event date (most recent first)
+    tickets.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+
+    console.log(`Retrieved ${tickets.length} tickets for user ${userId}`);
+    return tickets;
+}
+
+    
